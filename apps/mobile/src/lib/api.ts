@@ -1,6 +1,7 @@
 import { fetch } from 'expo/fetch';
 import type { ChatErrorCode, ChatRequest, ChatStreamEvent } from '@raco/shared';
 import { config } from './config';
+import { DEMO, demoStreamChat } from './demo';
 import { SseParser } from './sse';
 import { supabase } from './supabase';
 
@@ -18,6 +19,10 @@ export class ChatError extends Error {
  * stop generation (the server keeps whatever was already written).
  */
 export async function* streamChat(req: ChatRequest, signal?: AbortSignal): AsyncGenerator<ChatStreamEvent> {
+  if (DEMO) {
+    yield* demoStreamChat(req, signal);
+    return;
+  }
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
   if (!token) throw new ChatError('unauthorized', 'Sign in again to continue.');
@@ -65,6 +70,7 @@ export async function* streamChat(req: ChatRequest, signal?: AbortSignal): Async
 
 /** Permanently deletes the signed-in user's account and data. */
 export async function deleteAccount(): Promise<void> {
+  if (DEMO) return;
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
   if (!token) throw new ChatError('unauthorized', 'Sign in again to continue.');

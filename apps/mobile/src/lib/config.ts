@@ -3,7 +3,11 @@
  * the app, and none of them are secrets: the Supabase publishable key is
  * designed to ship in clients, and row level security protects the data.
  */
+import { DEMO } from './demo';
+
 function required(name: string, value: string | undefined): string {
+  // Demo builds answer everything in-memory, so no backend is configured.
+  if (DEMO) return value ?? 'https://demo.invalid';
   if (!value) {
     throw new Error(`Missing ${name}. Copy apps/mobile/.env.example to apps/mobile/.env and fill it in.`);
   }
