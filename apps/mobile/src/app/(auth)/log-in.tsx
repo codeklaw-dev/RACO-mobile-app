@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Text, TextInput, View } from 'react-native';
+import { Text, TextInput, View, type TextInputInstance } from 'react-native';
 import { Button, IconButton } from '@/components/button';
 import { EyeIcon } from '@/components/icons';
 import { Screen } from '@/components/screen';
@@ -16,7 +16,7 @@ import { accent, fonts, noWebOutline, useTheme } from '@/theme';
 export default function LogIn() {
   const t = useTheme();
   const field = useSurface('field');
-  const passwordRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInputInstance>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [reveal, setReveal] = useState(false);

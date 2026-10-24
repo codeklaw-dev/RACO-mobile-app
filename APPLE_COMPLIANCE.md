@@ -22,7 +22,7 @@ and the check script, then bump the dates.
 | 1.5 | Easy way to contact you | Settings → Help & legal → Contact support; support URL in App Store Connect. |
 | 2.1 | Complete app, demo account, live backend | The production build has demo mode off (`eas.json`), and the API refuses `LLM_PROVIDER=demo` and `STORE=memory` when `NODE_ENV=production`. |
 | 2.3.1 | Describe features accurately; no hidden features | The review notes must list every feature. Demo mode is not reachable in production builds. |
-| 2.5.1 | Public APIs only, current SDK | Expo SDK 57 with public modules only. EAS builds use the `latest` image (Xcode 26 and the iOS 26 SDK, required for uploads since 2026-04-28). |
+| 2.5.1 | Public APIs only, current SDK | Expo SDK 58 with public modules only. EAS builds use the `latest` image (Xcode 26 and the iOS 26 SDK, required for uploads since 2026-04-28). |
 | 2.5.2 | No downloaded or executed code | No `eval` or remote code. OTA updates may only change JS and assets within the reviewed purpose. |
 | 2.5.13 | Face ID through LocalAuthentication, with a fallback | `expo-local-authentication` with the device passcode fallback left on. |
 | 2.5.14 | Consent and a visible indicator when recording | The microphone only runs while the talk button is held; the stage glows and shows the live transcript while listening. |
