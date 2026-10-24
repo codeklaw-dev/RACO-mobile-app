@@ -5,5 +5,5 @@ import { useSession } from '@/state/session';
 export default function Index() {
   const { session, profile } = useSession();
   if (!session) return <Redirect href="/welcome" />;
-  return <Redirect href={profile?.onboardedAt ? '/home' : '/face-id'} />;
+  return <Redirect href={profile?.onboardedAt ? '/home' : '/voice'} />;
 }

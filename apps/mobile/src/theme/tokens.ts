@@ -123,7 +123,7 @@ export const dark: Palette = {
 };
 
 /** Removes the browser focus outline on web; fields draw their own focus ring. */
-export const noWebOutline = { outlineWidth: 0 } as const;
+export const noWebOutline = { outlineWidth: 0, outlineColor: 'transparent' } as const;
 
 export const radius = {
   control: 14,

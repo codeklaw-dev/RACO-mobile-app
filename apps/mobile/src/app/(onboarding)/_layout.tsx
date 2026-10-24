@@ -2,7 +2,7 @@ import { Stack } from 'expo-router';
 import { OnboardingProvider } from '@/state/onboarding';
 import { useTheme } from '@/theme';
 
-export const unstable_settings = { initialRouteName: 'face-id' };
+export const unstable_settings = { initialRouteName: 'voice' };
 
 export default function OnboardingLayout() {
   const t = useTheme();

@@ -58,7 +58,9 @@ export const TextField = forwardRef<TextInputInstance, FieldProps>(function Text
         {...rest}
       />
       {error ? (
-        <Text accessibilityLiveRegion="polite" style={{ color: t.scheme === 'light' ? '#B42318' : '#FF8A80', fontFamily: fonts.bodyMedium, fontSize: 13, paddingLeft: 4 }}>
+        <Text
+          accessibilityLiveRegion="polite"
+          style={{ color: t.scheme === 'light' ? '#B42318' : '#FF8A80', fontFamily: fonts.bodyMedium, fontSize: 13, paddingLeft: 4 }}>
           {error}
         </Text>
       ) : hint ? (
@@ -67,30 +69,6 @@ export const TextField = forwardRef<TextInputInstance, FieldProps>(function Text
     </View>
   );
 });
-
-/** Onboarding progress: one segment per step. */
-export function StepBar({ step, total }: { step: number; total: number }) {
-  const t = useTheme();
-  return (
-    <View
-      accessibilityRole="progressbar"
-      accessibilityValue={{ min: 1, max: total, now: step }}
-      accessibilityLabel={`Step ${step} of ${total}`}
-      style={{ flex: 1, height: 44, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-      {Array.from({ length: total }, (_, i) => (
-        <View
-          key={i}
-          style={{
-            flex: 1,
-            height: 4,
-            borderRadius: 2,
-            backgroundColor: i + 1 < step ? t.stepDone : i + 1 === step ? accent : t.stepTodo,
-          }}
-        />
-      ))}
-    </View>
-  );
-}
 
 /** iOS-style switch in the accent colour (51x31). */
 export function Toggle({ value, onChange, label }: { value: boolean; onChange: (v: boolean) => void; label: string }) {
