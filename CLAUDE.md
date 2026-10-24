@@ -36,6 +36,18 @@ The app must always open in Expo Go from the App Store and Play Store.
 - Only use native modules that Expo Go includes, or load others lazily with a
   fallback (see `src/lib/voice.ts`). `npm run apple-check` checks the SDK.
 
+## Merging
+
+Squash, and keep our own commits on `main`. GitHub's merge or squash button
+makes GitHub the committer, which shows as unverified, so instead:
+
+1. Squash the branch into one commit with a clear message.
+2. Open the pull request (`gh api`, base `main`) so the change is reviewable.
+3. Fast-forward `main` to that commit: `git push origin <branch>:main`.
+   GitHub then marks the pull request as merged.
+
+Never rewrite or force-push `main`.
+
 ## Checks
 
 ```bash
