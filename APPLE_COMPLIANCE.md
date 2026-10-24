@@ -31,9 +31,10 @@ and the check script, then bump the dates.
 | 4.8 | Offer Sign in with Apple when offering Google | Apple, Google, email code and password are all offered. |
 | 5.1.1(i) | Privacy policy in App Store Connect and in the app | Linked on the welcome screen, during onboarding and in Settings. |
 | 5.1.1(ii) | Consent, a way to withdraw it, clear purpose strings | Purpose strings in `app.json`. AI data sharing can be switched off in Settings. |
-| 5.1.1(v) | Account deletion in the app | Settings → Delete account (`DELETE /v1/account`, which cascades all data). |
+| 5.1.1(v) | Account deletion in the app | Settings → Delete account (`DELETE /v1/account`, which cascades all data, including projects, tasks, pinned chats and Library items). |
 | 5.1.2(i) | Name the third-party AI and get explicit permission before sharing data | Before onboarding answers or any chat message leave the phone, a **Before you start** sheet (Agree and continue / Not now) names the provider (`EXPO_PUBLIC_AI_PROVIDER`) and what is sent. The answer is saved as `profiles.ai_consent_at`. Without it the API refuses chat (`consent_required`) and voice onboarding uses the on-device reader. |
 | 5.1.2(ii) | Don't reuse data for another purpose without consent | Chats are not used for training or ads. Asking for new consent is required before that ever changes. |
+| 5.1.1(iii) | Collect only what the app needs | Projects, tasks, pins and Library items are the user's own content, stored for app features only and covered by the manifest's "other user content" entry. |
 | Privacy manifest | `PrivacyInfo.xcprivacy` declares data and Required Reason APIs | `ios.privacyManifests` in `app.json`: no tracking; email, name, user ID, user content and product interaction for app functionality; the UserDefaults, FileTimestamp, SystemBootTime and DiskSpace reasons that React Native needs. Expo modules add their own manifests at build time. |
 
 ## Before every submission (manual)

@@ -12,6 +12,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { ActionSheetProvider } from '@/components/action-sheet';
 import { LockScreen } from '@/components/lock-screen';
 import { AiConsentProvider } from '@/lib/ai-consent';
 import { AppLockProvider, useAppLock } from '@/state/app-lock';
@@ -37,7 +38,9 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <SessionProvider>
           <AppLockProvider>
-            <AiConsentProvider>{fontsLoaded ? <Navigator /> : null}</AiConsentProvider>
+            <AiConsentProvider>
+              <ActionSheetProvider>{fontsLoaded ? <Navigator /> : null}</ActionSheetProvider>
+            </AiConsentProvider>
           </AppLockProvider>
         </SessionProvider>
       </SafeAreaProvider>

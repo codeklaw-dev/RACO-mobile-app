@@ -18,3 +18,12 @@ export interface Task {
 
 export const PROJECT_NAME_MAX = 80;
 export const TASK_TITLE_MAX = 200;
+
+/** A reply the user saved to their Library. */
+export interface LibraryItem {
+  id: string;
+  title: string;
+  content: string;
+  conversationId: string | null;
+  createdAt: string;
+}
