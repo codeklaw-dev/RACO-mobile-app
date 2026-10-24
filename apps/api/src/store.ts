@@ -39,7 +39,8 @@ export interface Store {
   getUserContext(userId: string): Promise<UserContext | null>;
   countUserMessagesSince(userId: string, since: Date): Promise<number>;
   getConversation(id: string, userId: string): Promise<Conversation | null>;
-  createConversation(ctx: UserContext, title: string): Promise<Conversation>;
+  /** Null if `projectId` isn't one of the user's projects. */
+  createConversation(ctx: UserContext, title: string, projectId?: string): Promise<Conversation | null>;
   recentMessages(conversationId: string, limit: number): Promise<StoredMessage[]>;
   insertMessage(
     ctx: UserContext,
@@ -50,9 +51,9 @@ export interface Store {
   ): Promise<string>;
   touchConversation(conversationId: string): Promise<void>;
   recordUsage(usage: UsageRecord): Promise<void>;
-  /** Permanently deletes the user; their data cascades from auth.users. */
   /** Saves a report on one of the user's assistant messages; false if there is no such message. */
   reportMessage(userId: string, messageId: string, reason: ReportReason, note?: string): Promise<boolean>;
+  /** Permanently deletes the user; their data cascades from auth.users. */
   deleteUser(userId: string): Promise<void>;
 }
 
@@ -115,10 +116,15 @@ export class SupabaseStore implements Store {
     return data;
   }
 
-  async createConversation(ctx: UserContext, title: string): Promise<Conversation> {
+  async createConversation(ctx: UserContext, title: string, projectId?: string): Promise<Conversation | null> {
+    if (projectId) {
+      const { data: project, error } = await this.db.from('projects').select('id').eq('id', projectId).eq('user_id', ctx.userId).maybeSingle();
+      if (error) throw error;
+      if (!project) return null;
+    }
     const { data, error } = await this.db
       .from('conversations')
-      .insert({ workspace_id: ctx.workspaceId, user_id: ctx.userId, title })
+      .insert({ workspace_id: ctx.workspaceId, user_id: ctx.userId, title, project_id: projectId ?? null })
       .select('id, title')
       .single();
     if (error) throw error;

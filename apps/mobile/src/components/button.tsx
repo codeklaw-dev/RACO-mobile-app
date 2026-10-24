@@ -15,7 +15,7 @@ interface Props {
   accessibilityHint?: string;
 }
 
-/** Full-width 54pt button from the design. */
+/** Full-width 54pt pill button. */
 export function Button({ label, onPress, kind = 'primary', icon, loading, disabled, style, accessibilityHint }: Props) {
   const s = useSurface(kind);
   const inactive = disabled || loading;
@@ -34,7 +34,7 @@ export function Button({ label, onPress, kind = 'primary', icon, loading, disabl
         surfaceStyle(s),
         {
           height: 54,
-          borderRadius: 14,
+          borderRadius: 27,
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'center',
@@ -67,8 +67,8 @@ interface IconButtonProps {
   disabled?: boolean;
 }
 
-/** Square icon-only button (back, menu, new chat, composer actions). */
-export function IconButton({ label, onPress, children, kind = 'glass', size = 44, radius = 12, disabled }: IconButtonProps) {
+/** Round icon-only button (back, menu, new chat, composer actions). */
+export function IconButton({ label, onPress, children, kind = 'glass', size = 44, radius = size / 2, disabled }: IconButtonProps) {
   const s = useSurface(kind === 'plain' ? 'glass' : kind);
   return (
     <Pressable

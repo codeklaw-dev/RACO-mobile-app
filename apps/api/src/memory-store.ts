@@ -42,6 +42,7 @@ export class MemoryStore implements Store {
     return c && c.userId === userId ? { id: c.id, title: c.title } : null;
   }
 
+  /** Local runs have no projects table, so any project id is accepted. */
   async createConversation(ctx: UserContext, title: string): Promise<Conversation> {
     const id = randomUUID();
     this.conversations.set(id, { id, title, userId: ctx.userId, updatedAt: Date.now() });

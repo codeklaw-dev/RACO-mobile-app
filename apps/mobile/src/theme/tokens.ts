@@ -123,7 +123,9 @@ export const dark: Palette = {
 };
 
 /** Removes the browser focus outline on web; fields draw their own focus ring. */
-export const noWebOutline = { outlineWidth: 0, outlineColor: 'transparent' } as const;
+// Chrome draws its own focus ring on web text inputs unless the outline style
+// is "none"; React Native's types don't list that value, hence the cast.
+export const noWebOutline = { outlineWidth: 0, outlineColor: 'transparent', outlineStyle: 'none' as 'solid' } as const;
 
 export const radius = {
   control: 14,

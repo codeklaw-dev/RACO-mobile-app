@@ -43,7 +43,7 @@ export const TextField = forwardRef<TextInputInstance, FieldProps>(function Text
           surfaceStyle(s),
           {
             height: 54,
-            borderRadius: 14,
+            borderRadius: rest.multiline ? 22 : 27,
             paddingHorizontal: 16,
             fontSize: 17,
             fontFamily: fonts.body,
@@ -111,7 +111,7 @@ export function Chip({ label, selected, onToggle }: { label: string; selected: b
       }}
       style={({ pressed }) => [
         surfaceStyle(s),
-        { height: 44, paddingHorizontal: 16, borderRadius: 12, justifyContent: 'center', opacity: pressed ? 0.8 : 1 },
+        { height: 40, paddingHorizontal: 16, borderRadius: 20, justifyContent: 'center', opacity: pressed ? 0.8 : 1 },
       ]}>
       <Text style={{ color: s.color, fontFamily: fonts.bodyMedium, fontSize: 16 }}>{label}</Text>
     </Pressable>

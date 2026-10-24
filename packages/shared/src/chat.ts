@@ -5,6 +5,8 @@ export const MAX_MESSAGE_CHARS = 32_000;
 export const chatRequestSchema = z.object({
   // Omit to start a new conversation.
   conversationId: z.uuid().optional(),
+  // For a new conversation: the project to file it under.
+  projectId: z.uuid().optional(),
   message: z.string().trim().min(1).max(MAX_MESSAGE_CHARS),
   // "voice" asks for short, spoken-style replies (voice mode reads them aloud).
   mode: z.enum(['text', 'voice']).optional(),
@@ -43,6 +45,7 @@ export interface ConversationSummary {
   id: string;
   title: string;
   updatedAt: string;
+  projectId: string | null;
 }
 
 export interface ChatMessage {

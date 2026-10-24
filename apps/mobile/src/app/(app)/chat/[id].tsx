@@ -4,7 +4,7 @@ import { KeyboardAvoidingView, Platform, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Composer } from '@/components/composer';
 import { CenteredSpinner, MessageList } from '@/components/message-list';
-import { TopBar } from '@/components/top-bar';
+import { NavBar } from '@/components/ui';
 import { useSession } from '@/state/session';
 import { useChat } from '@/state/use-chat';
 import { fonts, useTheme } from '@/theme';
@@ -14,10 +14,10 @@ export default function Chat() {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const { profile } = useSession();
-  const { id, prompt } = useLocalSearchParams<{ id: string; prompt?: string }>();
+  const { id, prompt, projectId } = useLocalSearchParams<{ id: string; prompt?: string; projectId?: string }>();
   const isNew = id === 'new';
 
-  const chat = useChat(isNew ? null : id, (newId) => router.setParams({ id: newId, prompt: undefined }));
+  const chat = useChat(isNew ? null : id, (newId) => router.setParams({ id: newId, prompt: undefined }), 'text', projectId);
   const sentPrompt = useRef(false);
 
   useEffect(() => {
@@ -32,7 +32,7 @@ export default function Chat() {
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: t.background }}>
       <View style={{ flex: 1, paddingTop: insets.top + 12, paddingBottom: Math.max(insets.bottom, 16) + 8 }}>
         <View style={{ paddingHorizontal: 16 }}>
-          <TopBar center={null} />
+          <NavBar />
         </View>
         {chat.loading ? (
           <CenteredSpinner />

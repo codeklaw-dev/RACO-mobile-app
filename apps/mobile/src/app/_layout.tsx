@@ -48,9 +48,8 @@ function Navigator() {
   const lock = useAppLock();
 
   const signedIn = !!session;
-  // Wait for the profile after sign-in so we know which flow to show.
+  // Wait for the profile after sign-in so screens can greet by name.
   const loading = !ready || (signedIn && !profile);
-  const onboarded = !!profile?.onboardedAt;
 
   useEffect(() => {
     if (!loading) void SplashScreen.hideAsync();
@@ -66,10 +65,11 @@ function Navigator() {
         <Stack.Protected guard={!signedIn}>
           <Stack.Screen name="(auth)" />
         </Stack.Protected>
-        <Stack.Protected guard={signedIn && !onboarded}>
+        {/* Voice onboarding is paused: signing in goes straight to the app. */}
+        <Stack.Protected guard={false}>
           <Stack.Screen name="(onboarding)" />
         </Stack.Protected>
-        <Stack.Protected guard={signedIn && onboarded}>
+        <Stack.Protected guard={signedIn}>
           <Stack.Screen name="(app)" />
         </Stack.Protected>
       </Stack>

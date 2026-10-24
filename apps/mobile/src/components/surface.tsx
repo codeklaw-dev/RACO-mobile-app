@@ -25,7 +25,7 @@ interface Props extends ViewProps {
   radius?: number;
 }
 
-export function Surface({ kind = 'glass', radius = 14, style, ...rest }: Props) {
+export function Surface({ kind = 'glass', radius = 22, style, ...rest }: Props) {
   const s = useSurface(kind);
   return <View style={[surfaceStyle(s), { borderRadius: radius }, style]} {...rest} />;
 }
