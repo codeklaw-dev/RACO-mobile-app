@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import type { MessageRole, Plan, ResponseStyle } from '@raco/shared';
+import type { MessageRole, Plan, ReportReason, ResponseStyle } from '@raco/shared';
 
 export interface UserContext {
   userId: string;
@@ -9,6 +9,8 @@ export interface UserContext {
   agentName: string;
   interests: string[];
   responseStyle: ResponseStyle;
+  /** The user allowed sending their data to the AI provider (Guideline 5.1.2(i)). */
+  aiConsent: boolean;
 }
 
 export interface Conversation {
@@ -49,6 +51,8 @@ export interface Store {
   touchConversation(conversationId: string): Promise<void>;
   recordUsage(usage: UsageRecord): Promise<void>;
   /** Permanently deletes the user; their data cascades from auth.users. */
+  /** Saves a report on one of the user's assistant messages; false if there is no such message. */
+  reportMessage(userId: string, messageId: string, reason: ReportReason, note?: string): Promise<boolean>;
   deleteUser(userId: string): Promise<void>;
 }
 
@@ -69,7 +73,7 @@ export class SupabaseStore implements Store {
     const { data, error } = await this.db
       .from('profiles')
       .select(
-        'default_workspace_id, display_name, agent_name, interests, response_style, workspaces!profiles_default_workspace_id_fkey(plan)',
+        'default_workspace_id, display_name, agent_name, interests, response_style, ai_consent_at, workspaces!profiles_default_workspace_id_fkey(plan)',
       )
       .eq('user_id', userId)
       .maybeSingle();
@@ -85,6 +89,7 @@ export class SupabaseStore implements Store {
       agentName: data.agent_name,
       interests: data.interests ?? [],
       responseStyle: data.response_style,
+      aiConsent: data.ai_consent_at !== null,
     };
   }
 
@@ -174,6 +179,23 @@ export class SupabaseStore implements Store {
       cache_write_tokens: u.cacheWriteTokens,
     });
     if (error) throw error;
+  }
+
+  async reportMessage(userId: string, messageId: string, reason: ReportReason, note?: string): Promise<boolean> {
+    const { data: message, error } = await this.db
+      .from('messages')
+      .select('id, content')
+      .eq('id', messageId)
+      .eq('user_id', userId)
+      .eq('role', 'assistant')
+      .maybeSingle();
+    if (error) throw error;
+    if (!message) return false;
+    const { error: insertError } = await this.db
+      .from('message_reports')
+      .insert({ user_id: userId, message_id: message.id, content: message.content, reason, note: note ?? null });
+    if (insertError) throw insertError;
+    return true;
   }
 
   async deleteUser(userId: string): Promise<void> {

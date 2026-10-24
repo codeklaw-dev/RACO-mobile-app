@@ -9,8 +9,7 @@
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "fake-model": "node scripts/fake-model.mjs",
-    "dev:local": "STORE=memory LLM_PROVIDER=${LLM_PROVIDER:-openai-compatible} LLM_BASE_URL=${LLM_BASE_URL:-http://localhost:9100/v1} LLM_API_KEY=${LLM_API_KEY:-local} CHAT_MODEL=${CHAT_MODEL:-stand-in} VOICE_MODEL=${VOICE_MODEL:-stand-in} tsx watch src/index.ts"
+    "dev:local": "STORE=memory tsx watch --env-file-if-exists=.env src/index.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.2.0",

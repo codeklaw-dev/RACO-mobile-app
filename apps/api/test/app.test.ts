@@ -2,10 +2,11 @@ import { randomUUID } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import type { ChatStreamEvent } from '@raco/shared';
 import { createApp, HISTORY_LIMIT } from '../src/app';
+import { DemoLlm } from '../src/demo';
 import { devTokenVerifier } from '../src/memory-store';
 import type { CompletionEvent, CompletionRequest, Llm } from '../src/llm';
 import { buildSystemPrompt, titleFromMessage } from '../src/prompt';
-import { interpretLocally } from '@raco/shared';
+import { demoReply, interpretLocally } from '@raco/shared';
 import type { Conversation, Store, StoredMessage, UsageRecord, UserContext } from '../src/store';
 
 const USER_ID = '11111111-1111-4111-8111-111111111111';
@@ -20,6 +21,7 @@ function baseContext(overrides: Partial<UserContext> = {}): UserContext {
     agentName: 'Raco',
     interests: ['Writing', 'Research'],
     responseStyle: 'balanced',
+    aiConsent: true,
     ...overrides,
   };
 }
@@ -27,12 +29,18 @@ function baseContext(overrides: Partial<UserContext> = {}): UserContext {
 class MemoryStore implements Store {
   contexts = new Map<string, UserContext>([[USER_ID, baseContext()]]);
   conversations: (Conversation & { userId: string })[] = [];
-  messages: (StoredMessage & { conversationId: string; userId: string })[] = [];
+  messages: (StoredMessage & { id: string; conversationId: string; userId: string })[] = [];
   usage: UsageRecord[] = [];
   priorMessagesToday = 0;
 
   async getUserContext(userId: string) {
     return this.contexts.get(userId) ?? null;
+  }
+  reports: { messageId: string; reason: string }[] = [];
+  async reportMessage(userId: string, messageId: string, reason: string) {
+    const ok = this.messages.some((m) => m.id === messageId && m.userId === userId && m.role === 'assistant');
+    if (ok) this.reports.push({ messageId, reason });
+    return ok;
   }
   async countUserMessagesSince() {
     return this.priorMessagesToday;
@@ -52,8 +60,9 @@ class MemoryStore implements Store {
       .map(({ role, content }) => ({ role, content }));
   }
   async insertMessage(ctx: UserContext, conversationId: string, role: 'user' | 'assistant', content: string) {
-    this.messages.push({ conversationId, userId: ctx.userId, role, content });
-    return `msg-${this.messages.length}`;
+    const id = `msg-${this.messages.length + 1}`;
+    this.messages.push({ id, conversationId, userId: ctx.userId, role, content });
+    return id;
   }
   async touchConversation() {}
   async recordUsage(u: UsageRecord) {
@@ -204,7 +213,7 @@ describe('POST /v1/chat', () => {
     const convId = '55555555-5555-4555-8555-555555555555';
     store.conversations.push({ id: convId, title: 't', userId: USER_ID });
     for (let i = 0; i < HISTORY_LIMIT + 10; i++) {
-      store.messages.push({ conversationId: convId, userId: USER_ID, role: i % 2 ? 'assistant' : 'user', content: `${i}` });
+      store.messages.push({ id: `seed-${i}`, conversationId: convId, userId: USER_ID, role: i % 2 ? 'assistant' : 'user', content: `${i}` });
     }
     const llm = replying('ok');
     const { chat } = setup(llm, store);
@@ -282,5 +291,70 @@ describe('devTokenVerifier', () => {
     expect(await devTokenVerifier('dev:sam')).toEqual({ id: 'sam' });
     expect(await devTokenVerifier('eyJhbGciOi.x.y')).toBeNull();
     expect(await devTokenVerifier('dev:../etc')).toBeNull();
+  });
+});
+
+describe('DemoLlm', () => {
+  it('streams the sample reply for the last user message', async () => {
+    const events = [];
+    for await (const e of new DemoLlm(0).stream({ system: '', messages: [{ role: 'user', content: 'Plan my week' }] })) events.push(e);
+    const text = events.flatMap((e) => (e.type === 'text' ? [e.text] : [])).join('');
+    expect(text).toBe(demoReply('Plan my week'));
+    expect(events.at(-1)).toMatchObject({ type: 'done', refused: false, usage: { model: 'demo' } });
+  });
+});
+
+describe('AI consent (Guideline 5.1.2(i))', () => {
+  it('refuses chat until the user allows the AI service', async () => {
+    const store = new MemoryStore();
+    store.contexts.set(USER_ID, baseContext({ aiConsent: false }));
+    let called = false;
+    const { chat } = setup({ stream: () => ((called = true), replying('x').stream({ system: '', messages: [] })) }, store);
+    const res = await chat({ message: 'Hi' });
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({ error: { code: 'consent_required' } });
+    expect(called).toBe(false);
+    expect(store.messages).toHaveLength(0);
+  });
+
+  it('reads voice answers on-device rules instead of the model without consent', async () => {
+    const store = new MemoryStore();
+    store.contexts.set(USER_ID, baseContext({ aiConsent: false }));
+    let called = false;
+    const app = createApp({
+      store,
+      llm: replying('x'),
+      voice: { interpret: async (req) => ((called = true), interpretLocally(req)) },
+      verifyToken: async () => ({ id: USER_ID }),
+      log: () => {},
+    });
+    const res = await app.request('/v1/onboarding/voice-turn', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer good', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ step: 'name', transcript: "I'm Sam", agentName: 'Raco' }),
+    });
+    expect(await res.json()).toMatchObject({ understood: true, displayName: 'Sam' });
+    expect(called).toBe(false);
+  });
+});
+
+describe('POST /v1/reports (Guideline 1.2)', () => {
+  const report = (app: ReturnType<typeof setup>['app'], body: unknown, token = 'good') =>
+    app.request('/v1/reports', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+  it('saves a report on your own assistant message only', async () => {
+    const { app, store, chat } = setup();
+    const done = (await events(await chat({ message: 'Hi' }))).find((e) => e.type === 'done');
+    const messageId = done && done.type === 'done' ? done.messageId : '';
+
+    expect((await report(app, { messageId, reason: 'harmful' }, 'other')).status).toBe(404);
+    expect((await report(app, { messageId: 'msg-1', reason: 'harmful' })).status).toBe(404); // the user's own message
+    expect((await report(app, { messageId, reason: 'nope' })).status).toBe(400);
+    expect((await report(app, { messageId, reason: 'harmful' })).status).toBe(204);
+    expect(store.reports).toEqual([{ messageId, reason: 'harmful' }]);
   });
 });

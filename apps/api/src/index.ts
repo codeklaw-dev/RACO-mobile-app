@@ -1,5 +1,6 @@
 import { serve } from '@hono/node-server';
 import { createApp } from './app';
+import { DemoLlm, demoVoiceInterpreter } from './demo';
 import { supabaseTokenVerifier } from './auth';
 import { loadEnv } from './env';
 import { AnthropicLlm } from './llm';
@@ -13,6 +14,10 @@ const env = loadEnv();
 const log = (msg: string, err?: unknown) => console.error(msg, err);
 
 function models() {
+  if (env.LLM_PROVIDER === 'demo') {
+    console.warn('LLM_PROVIDER=demo: no model is connected; chat replies are samples.');
+    return { llm: new DemoLlm(), voice: demoVoiceInterpreter };
+  }
   if (env.LLM_PROVIDER === 'openai-compatible') {
     const cfg = { baseUrl: env.LLM_BASE_URL!, apiKey: env.LLM_API_KEY!, model: env.CHAT_MODEL! };
     const voice = { ...cfg, model: env.VOICE_MODEL ?? cfg.model };

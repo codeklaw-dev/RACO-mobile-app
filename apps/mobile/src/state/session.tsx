@@ -16,6 +16,8 @@ export interface Profile {
   responseStyle: ResponseStyle;
   notificationPrefs: NotificationPrefs;
   onboardedAt: string | null;
+  /** When the user allowed sending their data to the AI service; null if not. */
+  aiConsentAt: string | null;
 }
 
 interface SessionState {
@@ -41,7 +43,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
     const { data, error } = await supabase
       .from('profiles')
-      .select('display_name, agent_name, interests, response_style, notification_prefs, onboarded_at')
+      .select('display_name, agent_name, interests, response_style, notification_prefs, onboarded_at, ai_consent_at')
       .eq('user_id', userId)
       .maybeSingle();
     if (error) throw error;
@@ -104,6 +106,7 @@ interface ProfileRow {
   response_style: ResponseStyle;
   notification_prefs: Partial<NotificationPrefs> | null;
   onboarded_at: string | null;
+  ai_consent_at: string | null;
 }
 
 function fromRow(row: ProfileRow): Profile {
@@ -114,6 +117,7 @@ function fromRow(row: ProfileRow): Profile {
     responseStyle: row.response_style,
     notificationPrefs: { ...DEFAULT_NOTIFICATION_PREFS, ...(row.notification_prefs ?? {}) },
     onboardedAt: row.onboarded_at,
+    aiConsentAt: row.ai_consent_at ?? null,
   };
 }
 
@@ -125,5 +129,6 @@ function toRow(p: Partial<Profile>): Partial<ProfileRow> {
   if (p.responseStyle !== undefined) row.response_style = p.responseStyle;
   if (p.notificationPrefs !== undefined) row.notification_prefs = p.notificationPrefs;
   if (p.onboardedAt !== undefined) row.onboarded_at = p.onboardedAt;
+  if (p.aiConsentAt !== undefined) row.ai_consent_at = p.aiConsentAt;
   return row;
 }

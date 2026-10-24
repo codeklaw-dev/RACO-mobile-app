@@ -32,6 +32,7 @@ export type ChatErrorCode =
   | 'invalid_request'
   | 'not_found'
   | 'quota_exceeded'
+  | 'consent_required'
   | 'refused'
   | 'upstream_error'
   | 'internal';
@@ -50,3 +51,14 @@ export interface ChatMessage {
   content: string;
   createdAt: string;
 }
+
+/** Reporting an AI response (App Review Guideline 1.2). */
+export const REPORT_REASONS = ['harmful', 'sexual', 'hateful', 'inaccurate', 'other'] as const;
+export type ReportReason = (typeof REPORT_REASONS)[number];
+
+export const reportRequestSchema = z.object({
+  messageId: z.string().min(1).max(100),
+  reason: z.enum(REPORT_REASONS),
+  note: z.string().trim().max(500).optional(),
+});
+export type ReportRequest = z.infer<typeof reportRequestSchema>;

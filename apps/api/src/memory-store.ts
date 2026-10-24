@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { DEFAULT_AGENT_NAME, type MessageRole } from '@raco/shared';
+import { DEFAULT_AGENT_NAME, type MessageRole, type ReportReason } from '@raco/shared';
 import type { VerifyToken } from './auth';
 import type { Conversation, Store, StoredMessage, UsageRecord, UserContext } from './store';
 
@@ -12,6 +12,7 @@ export class MemoryStore implements Store {
   private readonly conversations = new Map<string, Conversation & { userId: string; updatedAt: number }>();
   private readonly messages: (StoredMessage & { id: string; conversationId: string; userId: string; at: number })[] = [];
   readonly usage: UsageRecord[] = [];
+  readonly reports: { userId: string; messageId: string; content: string; reason: ReportReason; note?: string }[] = [];
 
   async getUserContext(userId: string): Promise<UserContext> {
     let ctx = this.users.get(userId);
@@ -24,6 +25,8 @@ export class MemoryStore implements Store {
         agentName: DEFAULT_AGENT_NAME,
         interests: [],
         responseStyle: 'balanced',
+        // Local runs only: the app asks for consent; here it's assumed.
+        aiConsent: true,
       };
       this.users.set(userId, ctx);
     }
@@ -67,7 +70,15 @@ export class MemoryStore implements Store {
     this.usage.push(usage);
   }
 
+  async reportMessage(userId: string, messageId: string, reason: ReportReason, note?: string): Promise<boolean> {
+    const m = this.messages.find((x) => x.id === messageId && x.userId === userId && x.role === 'assistant');
+    if (!m) return false;
+    this.reports.push({ userId, messageId, content: m.content, reason, note });
+    return true;
+  }
+
   async deleteUser(userId: string): Promise<void> {
+    for (let i = this.reports.length - 1; i >= 0; i--) if (this.reports[i]!.userId === userId) this.reports.splice(i, 1);
     this.users.delete(userId);
     for (const [id, c] of this.conversations) if (c.userId === userId) this.conversations.delete(id);
     for (let i = this.messages.length - 1; i >= 0; i--) if (this.messages[i]!.userId === userId) this.messages.splice(i, 1);
