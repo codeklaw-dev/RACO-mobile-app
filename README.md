@@ -68,18 +68,35 @@ allowed redirect URLs.
 
 ### Running on a phone or simulator
 
-The app uses native modules (Face ID, Sign in with Apple, secure storage), so it
-needs a development build rather than Expo Go:
+The app uses native modules (speech recognition, Face ID, Sign in with Apple,
+secure storage), so it can't run in Expo Go. Build it with EAS instead.
+
+**Try the feel on your own phone (demo build, no backend needed).** The
+`preview` profile turns on demo mode: sample data and sample replies, any email
+and the code `123456`.
 
 ```bash
 cd apps/mobile
-npx expo run:ios          # iOS Simulator (macOS + Xcode)
-npx expo run:android      # Android emulator or device
-# or build in the cloud:
-npx eas-cli@latest build --profile development --platform ios
+npx eas-cli@latest login                       # free Expo account
+npx eas-cli@latest build --profile preview --platform android
+npx eas-cli@latest device:create               # iPhone: register it first (needs Apple Developer Program)
+npx eas-cli@latest build --profile preview --platform ios
 ```
 
-On a physical phone, set `EXPO_PUBLIC_API_URL` to your computer's LAN IP, not
+Each build ends with a link and QR code. Open it on the phone to install:
+Android installs the APK directly (allow installing from your browser when
+asked); an iPhone must be registered with `device:create` before the build,
+and then needs Developer Mode on (Settings → Privacy & Security).
+
+**Local builds** (connected phone or simulator):
+
+```bash
+npx expo run:ios          # macOS + Xcode
+npx expo run:android      # Android Studio or a USB-connected phone
+```
+
+The `production` profile always has demo mode off. On a physical phone with a
+real backend, set `EXPO_PUBLIC_API_URL` to a reachable address, not
 `localhost`.
 
 ### Testing on several simulators

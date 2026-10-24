@@ -13,6 +13,7 @@ import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { LockScreen } from '@/components/lock-screen';
+import { AiConsentProvider } from '@/lib/ai-consent';
 import { AppLockProvider, useAppLock } from '@/state/app-lock';
 import { SessionProvider, useSession } from '@/state/session';
 import { useTheme } from '@/theme';
@@ -35,7 +36,9 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <SessionProvider>
-          <AppLockProvider>{fontsLoaded ? <Navigator /> : null}</AppLockProvider>
+          <AppLockProvider>
+            <AiConsentProvider>{fontsLoaded ? <Navigator /> : null}</AiConsentProvider>
+          </AppLockProvider>
         </SessionProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

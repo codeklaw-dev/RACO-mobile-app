@@ -71,7 +71,7 @@ export function useChat(
       const message = text.trim();
       if (!message || abortRef.current) return;
       if (!(await ensureConsent())) {
-        setError('Raco needs your permission to use its AI service before it can reply.');
+        setError('Raco can’t reply until you agree. Send again to see the terms.');
         return;
       }
 

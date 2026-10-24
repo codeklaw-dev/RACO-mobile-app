@@ -8,7 +8,6 @@ import {
   type VoiceTurnResult,
 } from '@raco/shared';
 import * as Speech from 'expo-speech';
-import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
 import { fetch } from 'expo/fetch';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { config } from './config';
@@ -60,9 +59,22 @@ export function stopSpeaking() {
 // Listening: the phone's built-in speech recognition, push-to-talk.
 // ---------------------------------------------------------------------------
 
+type Recognizer = (typeof import('expo-speech-recognition'))['ExpoSpeechRecognitionModule'];
+
+// Loaded lazily: the native module isn't in Expo Go, and importing it there
+// throws. Without it, voice input is unavailable and the app offers typing.
+const recognizer: Recognizer | null = (() => {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    return (require('expo-speech-recognition') as typeof import('expo-speech-recognition')).ExpoSpeechRecognitionModule;
+  } catch {
+    return null;
+  }
+})();
+
 export function speechRecognitionAvailable(): boolean {
   try {
-    return ExpoSpeechRecognitionModule.isRecognitionAvailable();
+    return recognizer?.isRecognitionAvailable() ?? false;
   } catch {
     return false;
   }
@@ -70,8 +82,8 @@ export function speechRecognitionAvailable(): boolean {
 
 export async function requestMicrophone(): Promise<boolean> {
   try {
-    const res = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-    return res.granted;
+    const res = await recognizer?.requestPermissionsAsync();
+    return res?.granted ?? false;
   } catch {
     return false;
   }
@@ -86,41 +98,47 @@ export async function requestMicrophone(): Promise<boolean> {
 export function useHoldToTalk(onFinal: (transcript: string) => void) {
   const [listening, setListening] = useState(false);
   const [partial, setPartial] = useState('');
-  const [unavailable, setUnavailable] = useState(false);
+  const [unavailable, setUnavailable] = useState(!recognizer);
   const latest = useRef('');
   const onFinalRef = useRef(onFinal);
   useEffect(() => {
     onFinalRef.current = onFinal;
   }, [onFinal]);
 
-  useSpeechRecognitionEvent('start', () => setListening(true));
-  useSpeechRecognitionEvent('result', (e) => {
-    const t = e.results[0]?.transcript ?? '';
-    latest.current = t;
-    setPartial(t);
-  });
-  useSpeechRecognitionEvent('end', () => {
-    setListening(false);
-    const t = latest.current.trim();
-    latest.current = '';
-    setPartial('');
-    if (t) onFinalRef.current(t);
-  });
-  useSpeechRecognitionEvent('error', (e) => {
-    // Nothing heard is fine: the user just tries again. Anything else means
-    // the mic can't be used here.
-    if (e.error === 'aborted' || e.error === 'no-speech' || e.error === 'speech-timeout') return;
-    setListening(false);
-    setUnavailable(true);
-  });
+  useEffect(() => {
+    if (!recognizer) return;
+    const subs = [
+      recognizer.addListener('start', () => setListening(true)),
+      recognizer.addListener('result', (e) => {
+        const t = e.results[0]?.transcript ?? '';
+        latest.current = t;
+        setPartial(t);
+      }),
+      recognizer.addListener('end', () => {
+        setListening(false);
+        const t = latest.current.trim();
+        latest.current = '';
+        setPartial('');
+        if (t) onFinalRef.current(t);
+      }),
+      recognizer.addListener('error', (e) => {
+        // Nothing heard is fine: the user just tries again. Anything else
+        // means the mic can't be used here.
+        if (e.error === 'aborted' || e.error === 'no-speech' || e.error === 'speech-timeout') return;
+        setListening(false);
+        setUnavailable(true);
+      }),
+    ];
+    return () => subs.forEach((s) => s.remove());
+  }, []);
 
   const start = useCallback(() => {
     stopSpeaking();
     latest.current = '';
-    ExpoSpeechRecognitionModule.start({ lang: 'en-US', interimResults: true, continuous: true, addsPunctuation: true });
+    recognizer?.start({ lang: 'en-US', interimResults: true, continuous: true, addsPunctuation: true });
   }, []);
 
-  const stop = useCallback(() => ExpoSpeechRecognitionModule.stop(), []);
+  const stop = useCallback(() => recognizer?.stop(), []);
 
   return { listening, partial, unavailable, start, stop };
 }
