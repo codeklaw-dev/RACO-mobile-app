@@ -27,7 +27,13 @@ const nextLocalId = () => `local-${++localId}`;
  * One conversation: loads its history, sends messages and streams replies.
  * `onConversation` fires when the server creates a new conversation.
  */
-export function useChat(initialId: string | null, onConversation?: (id: string) => void, mode: ChatMode = 'text'): ChatState {
+export function useChat(
+  initialId: string | null,
+  onConversation?: (id: string) => void,
+  mode: ChatMode = 'text',
+  /** Files a new conversation under this project. */
+  projectId?: string,
+): ChatState {
   const [conversationId, setConversationId] = useState(initialId);
   const [messages, setMessages] = useState<UiMessage[]>([]);
   const [loading, setLoading] = useState(!!initialId);
@@ -86,7 +92,7 @@ export function useChat(initialId: string | null, onConversation?: (id: string) 
 
       let firstToken = true;
       try {
-        for await (const event of streamChat({ conversationId: conversationId ?? undefined, message, mode }, abort.signal)) {
+        for await (const event of streamChat({ conversationId: conversationId ?? undefined, projectId: conversationId ? undefined : projectId, message, mode }, abort.signal)) {
           switch (event.type) {
             case 'conversation':
               if (!conversationId) {
@@ -120,7 +126,7 @@ export function useChat(initialId: string | null, onConversation?: (id: string) 
         );
       }
     },
-    [conversationId, onConversation, mode, ensureConsent],
+    [conversationId, onConversation, mode, ensureConsent, projectId],
   );
 
   const stop = useCallback(() => abortRef.current?.abort(), []);

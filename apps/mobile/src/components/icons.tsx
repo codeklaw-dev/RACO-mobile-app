@@ -169,6 +169,23 @@ export function PathIcon({ color, d, size = 20, strokeWidth = 1.6 }: IconProps &
   );
 }
 
+/** Tab bar and list icons, drawn on the 20x20 PathIcon grid. */
+export const ICONS = {
+  home: 'M3 9.5L10 3.5l7 6V16a1 1 0 0 1-1 1h-3.5v-4.5h-5V17H4a1 1 0 0 1-1-1z',
+  chats: 'M3.5 4.5h13a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H8l-4 3v-3h-.5a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1z',
+  projects: 'M2.5 5.5a1 1 0 0 1 1-1h4l1.5 2h7.5a1 1 0 0 1 1 1V15a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1z',
+  tasks: 'M7.5 5h9M7.5 10h9M7.5 15h9M3 5l1 1 1.5-2M3 10l1 1 1.5-2M3 15l1 1 1.5-2',
+  profile: 'M10 10a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM3.5 17.5a6.5 6.5 0 0 1 13 0',
+  search: 'M9 15.5a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13zM14 14l4 4',
+  settings: 'M3 6h9M16 6h1M3 14h1M8 14h9M14 4v4M6 12v4',
+  privacy: 'M10 2.5l6 2.5v4.5c0 4-2.6 6.8-6 8-3.4-1.2-6-4-6-8V5z',
+  calendar: 'M3.5 5.5a1 1 0 0 1 1-1h11a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1zM3.5 8.5h13M7 2.5v4M13 2.5v4',
+  mail: 'M3 5h14v10H3zM3 5.5l7 5.5 7-5.5',
+  bulb: 'M7.5 14.5h5M8 17h4M10 2.5a5 5 0 0 0-3 9c.6.5 1 1.2 1 2v1h4v-1c0-.8.4-1.5 1-2a5 5 0 0 0-3-9z',
+  document: 'M5.5 2.5h6l3.5 3.5v11a.5.5 0 0 1-.5.5h-9a.5.5 0 0 1-.5-.5V3a.5.5 0 0 1 .5-.5zM11.5 2.5V6H15M7.5 10h5M7.5 13h5',
+  trash: 'M4 6h12M8 6V4h4v2M5.5 6l.8 10.5a1 1 0 0 0 1 .9h5.4a1 1 0 0 0 1-.9L14.5 6',
+} as const;
+
 export const PHONE_PATH =
   'M4.5 2.5h3l1.5 4-2 1.5a10 10 0 0 0 5 5l1.5-2 4 1.5v3a2 2 0 0 1-2 2A15 15 0 0 1 2.5 4.5a2 2 0 0 1 2-2z';
 

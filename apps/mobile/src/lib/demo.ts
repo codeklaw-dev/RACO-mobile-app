@@ -29,6 +29,7 @@ interface DemoChat {
   id: string;
   title: string;
   updated_at: string;
+  project_id?: string | null;
   messages: { id: string; role: 'user' | 'assistant'; content: string; created_at: string }[];
 }
 
@@ -46,8 +47,99 @@ const state = {
     ai_consent_at: null as string | null,
   },
   chats: [] as DemoChat[],
+  projects: [] as Row[],
+  tasks: [] as Row[],
+  seeded: false,
 };
 loadState();
+seed();
+
+type Row = Record<string, unknown> & { id: string };
+
+/** Sample projects and tasks so the preview isn't empty on first open. */
+function seed() {
+  if (state.seeded) return;
+  const at = (daysAgo: number) => new Date(Date.now() - daysAgo * 86_400_000).toISOString();
+  const project = (id: string, name: string, description: string, days: number) => ({ id, name, description, created_at: at(days), updated_at: at(days) });
+  const task = (id: string, title: string, project_id: string | null, days: number, done = false) => ({
+    id,
+    title,
+    notes: '',
+    project_id,
+    done_at: done ? at(days / 2) : null,
+    created_at: at(days),
+    updated_at: at(days),
+  });
+  state.projects = [
+    project('p-launch', 'Product launch', 'Plan the November release: messaging, timeline and launch-day checklist.', 1),
+    project('p-thesis', 'Thesis research', 'Sources, outlines and drafts for chapter three.', 3),
+    project('p-home', 'Home move', 'Movers, utilities and the change-of-address list.', 6),
+  ];
+  state.tasks = [
+    task('t-1', 'Draft the launch announcement', 'p-launch', 1),
+    task('t-2', 'Confirm the 14 November date with Priya', 'p-launch', 2),
+    task('t-3', 'List three competitors to compare', 'p-launch', 4, true),
+    task('t-4', 'Summarise the five core papers', 'p-thesis', 3),
+    task('t-5', 'Book the movers', 'p-home', 5),
+    task('t-6', 'Renew passport', null, 2),
+  ];
+  state.seeded = true;
+  saveState();
+}
+
+const TABLES = { projects: () => state.projects, tasks: () => state.tasks } as const;
+
+/** A small PostgREST stand-in: eq/is filters, order, limit, insert, update, delete. */
+function table(name: keyof typeof TABLES, url: URL, method: string, headers: Headers, body: unknown): Response {
+  const rows = TABLES[name]();
+  const filters = [...url.searchParams].filter(([k]) => !['select', 'order', 'limit', 'offset', 'columns'].includes(k));
+  const matches = (r: Row) =>
+    filters.every(([k, v]) => (v === 'is.null' ? r[k] == null : v === 'not.is.null' ? r[k] != null : v.startsWith('eq.') ? String(r[k]) === v.slice(3) : true));
+  const one = headers.get('accept')?.includes('vnd.pgrst.object');
+  const wantsRows = headers.get('prefer')?.includes('return=representation');
+  const reply = (list: Row[], status = 200) => (one ? (list[0] ? json(list[0], status) : json({ message: 'not found' }, 406)) : json(list, status));
+  const now = new Date().toISOString();
+
+  switch (method) {
+    case 'POST': {
+      const added = (Array.isArray(body) ? body : [body]).map((b) => ({
+        id: `${name[0]}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        created_at: now,
+        updated_at: now,
+        ...(name === 'tasks' ? { notes: '', project_id: null, done_at: null } : { description: '' }),
+        ...(b as object),
+      }));
+      rows.unshift(...added);
+      saveState();
+      return wantsRows ? reply(added, 201) : json(null, 201);
+    }
+    case 'PATCH': {
+      const changed = rows.filter(matches);
+      for (const r of changed) Object.assign(r, body, { updated_at: now });
+      saveState();
+      return wantsRows ? reply(changed) : json(null, 204);
+    }
+    case 'DELETE': {
+      const gone = new Set(rows.filter(matches).map((r) => r.id));
+      TABLES[name]().splice(0, rows.length, ...rows.filter((r) => !gone.has(r.id)));
+      if (name === 'projects') {
+        for (const t of state.tasks) if (gone.has(t.project_id as string)) t.project_id = null;
+        for (const c of state.chats) if (c.project_id && gone.has(c.project_id)) c.project_id = null;
+      }
+      saveState();
+      return json(null, 204);
+    }
+    default: {
+      let list = rows.filter(matches);
+      const [col, dir] = (url.searchParams.get('order') ?? 'created_at.desc').split('.');
+      list = [...list].sort((a, b) => String(a[col!] ?? '').localeCompare(String(b[col!] ?? '')) * (dir === 'asc' ? 1 : -1));
+      const range = { 'content-range': `0-${Math.max(list.length - 1, 0)}/${list.length}` };
+      if (method === 'HEAD') return new Response(null, { status: 200, headers: range });
+      const limit = Number(url.searchParams.get('limit') ?? list.length);
+      return one ? reply(list) : json(list.slice(0, limit), 200, range);
+    }
+  }
+}
 
 // The preview keeps its profile and chats in the browser, so a reload picks
 // up where the viewer left off. Storage can be unavailable (private
@@ -76,6 +168,7 @@ const json = (body: unknown, status = 200, headers: Record<string, string> = {})
 export async function demoFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url);
   const method = (init?.method ?? 'GET').toUpperCase();
+  const headers = new Headers(init?.headers);
   const body = typeof init?.body === 'string' && init.body ? JSON.parse(init.body) : null;
   await new Promise((r) => setTimeout(r, 250));
 
@@ -99,17 +192,30 @@ export async function demoFetch(input: RequestInfo | URL, init?: RequestInit): P
         return json(null, 204);
       }
       return json(state.profile);
+    case '/rest/v1/projects':
+      return table('projects', url, method, headers, body);
+    case '/rest/v1/tasks':
+      return table('tasks', url, method, headers, body);
     case '/rest/v1/conversations': {
+      const id = url.searchParams.get('id')?.replace('eq.', '');
       if (method === 'DELETE') {
-        const id = url.searchParams.get('id')?.replace('eq.', '');
         state.chats = state.chats.filter((c) => c.id !== id);
         saveState();
         return json(null, 204);
       }
-      const range = { 'content-range': `0-${Math.max(state.chats.length - 1, 0)}/${state.chats.length}` };
+      if (method === 'PATCH') {
+        const chat = state.chats.find((c) => c.id === id);
+        if (chat) Object.assign(chat, body);
+        saveState();
+        return json(null, 204);
+      }
+      const project = url.searchParams.get('project_id')?.replace('eq.', '');
+      const list = [...state.chats]
+        .filter((c) => !project || c.project_id === project)
+        .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+      const range = { 'content-range': `0-${Math.max(list.length - 1, 0)}/${list.length}` };
       if (method === 'HEAD') return new Response(null, { status: 200, headers: range });
-      const list = [...state.chats].sort((a, b) => b.updated_at.localeCompare(a.updated_at));
-      return json(list.map(({ id, title, updated_at }) => ({ id, title, updated_at })), 200, range);
+      return json(list.map(({ id, title, updated_at, project_id }) => ({ id, title, updated_at, project_id: project_id ?? null })), 200, range);
     }
     case '/rest/v1/messages': {
       const id = url.searchParams.get('conversation_id')?.replace('eq.', '');
@@ -137,13 +243,13 @@ function previewInstructions(mode: ChatMode = 'text'): string {
 
 /** Stands in for the RACO API's streaming chat endpoint. */
 export async function* demoStreamChat(
-  req: { conversationId?: string; message: string; mode?: ChatMode },
+  req: { conversationId?: string; projectId?: string; message: string; mode?: ChatMode },
   signal?: AbortSignal,
 ): AsyncGenerator<ChatStreamEvent> {
   const now = () => new Date().toISOString();
   let chat = state.chats.find((c) => c.id === req.conversationId);
   if (!chat) {
-    chat = { id: `demo-${Date.now()}`, title: req.message.slice(0, 60), updated_at: now(), messages: [] };
+    chat = { id: `demo-${Date.now()}`, title: req.message.slice(0, 60), updated_at: now(), project_id: req.projectId ?? null, messages: [] };
     state.chats.push(chat);
   }
   chat.messages.push({ id: `m-${Date.now()}`, role: 'user', content: req.message, created_at: now() });

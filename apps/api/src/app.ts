@@ -56,7 +56,7 @@ export function createApp(deps: AppDeps) {
     if (!parsed.success) {
       return c.json(errorBody('invalid_request', 'That message could not be sent.'), 400);
     }
-    const { conversationId, message, mode } = parsed.data;
+    const { conversationId, projectId, message, mode } = parsed.data;
 
     const ctx = await deps.store.getUserContext(user.id);
     if (!ctx) return c.json(errorBody('unauthorized', 'Your account is not set up yet.'), 403);
@@ -78,7 +78,8 @@ export function createApp(deps: AppDeps) {
       conversation = await deps.store.getConversation(conversationId, user.id);
       if (!conversation) return c.json(errorBody('not_found', 'That chat no longer exists.'), 404);
     } else {
-      conversation = await deps.store.createConversation(ctx, titleFromMessage(message));
+      conversation = await deps.store.createConversation(ctx, titleFromMessage(message), projectId);
+      if (!conversation) return c.json(errorBody('not_found', 'That project no longer exists.'), 404);
     }
 
     await deps.store.insertMessage(ctx, conversation.id, 'user', message);

@@ -1,11 +1,10 @@
 import type { Interest } from '@raco/shared';
 
-/** Home screen suggestion tiles (design 12). */
+/** Home screen suggestions: one line each, with a monochrome icon. */
 export const SUGGESTIONS = [
-  { title: 'Summarise a PDF', body: 'Drop in a file, get key points', prompt: 'Help me summarise a document. I will paste the text.' },
-  { title: 'Plan my week', body: 'Turn tasks into a schedule', prompt: 'Help me plan my week. Ask me what I need to get done.' },
-  { title: 'Draft an email', body: 'Clear, polite, ready to send', prompt: 'Help me draft an email. Ask me who it is for and what it needs to say.' },
-  { title: 'Explain a topic', body: 'Simply, with examples', prompt: 'Explain a topic to me simply, with examples. Ask me which topic.' },
+  { icon: 'calendar', text: 'Plan my week around three deadlines', prompt: 'Help me plan my week. Ask me what I need to get done.' },
+  { icon: 'mail', text: 'Draft a polite follow-up email', prompt: 'Help me draft an email. Ask me who it is for and what it needs to say.' },
+  { icon: 'bulb', text: 'Explain a topic simply, with examples', prompt: 'Explain a topic to me simply, with examples. Ask me which topic.' },
 ] as const;
 
 const BY_INTEREST: Partial<Record<Interest, string>> = {

@@ -28,7 +28,7 @@ function baseContext(overrides: Partial<UserContext> = {}): UserContext {
 
 class MemoryStore implements Store {
   contexts = new Map<string, UserContext>([[USER_ID, baseContext()]]);
-  conversations: (Conversation & { userId: string })[] = [];
+  conversations: (Conversation & { userId: string; projectId?: string })[] = [];
   messages: (StoredMessage & { id: string; conversationId: string; userId: string })[] = [];
   usage: UsageRecord[] = [];
   priorMessagesToday = 0;
@@ -48,8 +48,10 @@ class MemoryStore implements Store {
   async getConversation(id: string, userId: string) {
     return this.conversations.find((c) => c.id === id && c.userId === userId) ?? null;
   }
-  async createConversation(ctx: UserContext, title: string) {
-    const conv = { id: randomUUID(), title, userId: ctx.userId };
+  projects = new Map<string, string>(); // project id -> owner
+  async createConversation(ctx: UserContext, title: string, projectId?: string) {
+    if (projectId && this.projects.get(projectId) !== ctx.userId) return null;
+    const conv = { id: randomUUID(), title, userId: ctx.userId, projectId };
     this.conversations.push(conv);
     return { id: conv.id, title };
   }
@@ -356,5 +358,19 @@ describe('POST /v1/reports (Guideline 1.2)', () => {
     expect((await report(app, { messageId, reason: 'nope' })).status).toBe(400);
     expect((await report(app, { messageId, reason: 'harmful' })).status).toBe(204);
     expect(store.reports).toEqual([{ messageId, reason: 'harmful' }]);
+  });
+});
+
+describe('chats in projects', () => {
+  it('files a new chat under one of your projects, and refuses anyone else’s', async () => {
+    const store = new MemoryStore();
+    const mine = randomUUID();
+    const theirs = randomUUID();
+    store.projects.set(mine, USER_ID).set(theirs, OTHER_USER);
+    const { chat } = setup(undefined, store);
+
+    expect((await chat({ message: 'Hi', projectId: theirs })).status).toBe(404);
+    expect((await chat({ message: 'Hi', projectId: mine })).status).toBe(200);
+    expect(store.conversations.map((c) => c.projectId)).toEqual([mine]);
   });
 });
