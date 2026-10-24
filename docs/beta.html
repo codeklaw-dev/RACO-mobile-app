@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Raco Beta Setup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Instrument+Sans:wght@600&amp;display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #EBEBED; --card: #FFFFFF; --text: #2A2A2B; --sub: #55555A; --faint: #6A6A70;
+  --line: rgba(42,42,43,0.10); --tile: rgba(42,42,43,0.06); --accent: #FC7965; --accent-text: #C2412E;
+  --shadow: 0 1px 2px rgba(42,42,43,0.05), 0 10px 28px rgba(42,42,43,0.07);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #2A2A2B; --card: #343436; --text: #F5F5F7; --sub: #B4B4B9; --faint: #9C9CA2;
+    --line: rgba(255,255,255,0.10); --tile: rgba(255,255,255,0.08); --accent-text: #FC7965;
+    --shadow: 0 10px 30px rgba(0,0,0,0.3);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #2A2A2B; --card: #343436; --text: #F5F5F7; --sub: #B4B4B9; --faint: #9C9CA2;
+  --line: rgba(255,255,255,0.10); --tile: rgba(255,255,255,0.08); --accent-text: #FC7965;
+  --shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.55 Inter, -apple-system, system-ui, sans-serif; }
+main { max-width: 760px; margin: 0 auto; padding: 40px 16px 64px; }
+h1, h2 { font-family: "Instrument Sans", Inter, sans-serif; font-weight: 600; letter-spacing: -0.02em; margin: 0; }
+h1 { font-size: clamp(30px, 6vw, 40px); line-height: 1.15; }
+h2 { font-size: 21px; margin-bottom: 14px; }
+p { margin: 0; }
+a { color: var(--accent-text); }
+.lede { color: var(--sub); margin-top: 10px; font-size: 17px; max-width: 560px; }
+.logo { color: var(--text); margin-bottom: 28px; display: block; }
+.card { background: var(--card); border-radius: 24px; box-shadow: var(--shadow); padding: 24px; margin-top: 20px; }
+.hero { display: grid; grid-template-columns: 220px 1fr; gap: 28px; align-items: center; }
+.qr { background: #fff; border-radius: 18px; padding: 12px; width: 220px; }
+.qr svg { display: block; width: 100%; height: auto; }
+.hero p + p { margin-top: 10px; }
+.link { display: flex; gap: 8px; margin-top: 16px; align-items: stretch; flex-wrap: wrap; }
+code { font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--tile); border-radius: 10px; padding: 10px 12px; word-break: break-all; flex: 1 1 260px; }
+button, .btn { font: 600 15px Inter, sans-serif; border: 0; border-radius: 999px; padding: 10px 18px; cursor: pointer; background: var(--text); color: var(--bg); text-decoration: none; display: inline-flex; align-items: center; justify-content: center; min-height: 44px; }
+button.ghost { background: var(--tile); color: var(--text); }
+ol.steps { list-style: none; counter-reset: step; margin: 0; padding: 0; display: grid; gap: 18px; }
+ol.steps > li { counter-increment: step; display: grid; grid-template-columns: 36px 1fr; gap: 14px; }
+ol.steps > li::before { content: counter(step); width: 32px; height: 32px; border-radius: 50%; background: var(--accent); color: #2A2A2B; font-weight: 600; display: flex; align-items: center; justify-content: center; }
+.step-title { font-weight: 600; }
+.step-body { color: var(--sub); margin-top: 2px; }
+.stores { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+.code { display: inline-block; font: 600 18px ui-monospace, Menlo, monospace; letter-spacing: 0.12em; background: var(--tile); border-radius: 8px; padding: 2px 10px; color: var(--text); }
+ul.plain { margin: 0; padding-left: 20px; color: var(--sub); }
+ul.plain li + li { margin-top: 6px; }
+ul.plain strong { color: var(--text); font-weight: 600; }
+dl { margin: 0; display: grid; gap: 14px; }
+dt { font-weight: 600; }
+dd { margin: 2px 0 0; color: var(--sub); }
+.note { background: var(--tile); border-radius: 16px; padding: 14px 16px; color: var(--sub); margin-top: 16px; }
+.note strong { color: var(--text); }
+footer { color: var(--faint); font-size: 13px; margin-top: 28px; text-align: center; }
+@media (max-width: 600px) {
+  main { padding-top: 28px; }
+  .hero { grid-template-columns: 1fr; justify-items: center; text-align: center; }
+  .qr { width: min(240px, 70vw); }
+  .link { justify-content: center; }
+  .card { padding: 20px; }
+}
+</style>
+</head>
+<body>
+<main>
+  <svg class="logo" viewBox="0 11 762 132" width="96" role="img" aria-label="RACO AI"><g fill="none" stroke="currentColor" stroke-width="30" stroke-linejoin="miter"><path d="M24 158V26H70a33 33 0 0 1 0 66H24M82 92l26 56"/><path d="M137 158L205 26L274 158M129 128H216"/><path d="M379.5 47.5A44 51.5 0 1 0 379.5 106.5" stroke-width="29"/><ellipse cx="482" cy="77" rx="55.5" ry="51.5" stroke-width="29"/><path d="M563 158L631 26L700 158M555 128H642"/><path d="M738 0V158"/></g></svg>
+  <h1>Try the Raco beta on your phone</h1>
+  <p class="lede">Raco runs inside the free Expo Go app on iPhone and Android. Setup takes about five minutes, and after that the same QR code always opens the newest build.</p>
+
+  <section class="card hero" aria-labelledby="open">
+    <div class="qr"><svg role="img" aria-label="QR code that opens the Raco beta in Expo Go" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 43 43" shape-rendering="crispEdges"><path fill="#FFFFFF" d="M0 0h43v43H0z"/><path stroke="#2A2A2B" d="M1 1.5h7m4 0h2m1 0h1m2 0h5m1 0h1m4 0h5m1 0h7M1 2.5h1m5 0h1m2 0h6m3 0h1m1 0h2m5 0h3m2 0h1m1 0h1m5 0h1M1 3.5h1m1 0h3m1 0h1m1 0h3m1 0h1m1 0h1m1 0h1m1 0h1m1 0h2m5 0h2m3 0h1m1 0h1m1 0h3m1 0h1M1 4.5h1m1 0h3m1 0h1m1 0h5m1 0h3m1 0h1m1 0h1m2 0h1m1 0h2m2 0h1m1 0h1m2 0h1m1 0h3m1 0h1M1 5.5h1m1 0h3m1 0h1m1 0h2m1 0h1m1 0h1m2 0h4m1 0h4m5 0h2m2 0h1m1 0h3m1 0h1M1 6.5h1m5 0h1m1 0h1m1 0h1m2 0h1m1 0h1m2 0h1m1 0h3m3 0h3m3 0h1m1 0h1m5 0h1M1 7.5h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7M9 8.5h2m4 0h1m3 0h1m2 0h2m4 0h1m4 0h1M1 9.5h1m1 0h5m2 0h1m2 0h2m3 0h1m1 0h2m4 0h2m2 0h1m4 0h5M2 10.5h3m1 0h1m1 0h5m5 0h3m2 0h4m2 0h2m1 0h7m1 0h2M4 11.5h1m1 0h2m1 0h3m1 0h1m1 0h3m1 0h1m2 0h1m4 0h2m9 0h1M1 12.5h1m1 0h2m3 0h1m2 0h2m2 0h1m5 0h3m3 0h1m1 0h1m2 0h2m2 0h1m1 0h1M2 13.5h1m1 0h1m1 0h2m2 0h1m1 0h5m1 0h2m5 0h2m2 0h2m1 0h1m3 0h1m1 0h2m1 0h1M1 14.5h2m1 0h3m2 0h4m4 0h2m1 0h1m1 0h4m1 0h1m1 0h5m1 0h1m1 0h2m1 0h2M1 15.5h1m2 0h2m1 0h2m5 0h5m1 0h1m2 0h1m3 0h2m1 0h1m2 0h1m1 0h4M1 16.5h1m1 0h1m1 0h2m4 0h1m2 0h1m4 0h1m2 0h4m1 0h2m2 0h1m3 0h2m4 0h1M1 17.5h2m1 0h1m1 0h4m1 0h2m1 0h5m2 0h1m1 0h5m1 0h2m1 0h1m1 0h1m3 0h2m1 0h1M2 18.5h1m1 0h2m2 0h3m1 0h1m1 0h3m3 0h2m2 0h4m2 0h3m1 0h2m1 0h1m3 0h1M1 19.5h1m1 0h6m1 0h2m1 0h2m4 0h1m3 0h1m2 0h5m7 0h3M1 20.5h2m1 0h2m2 0h2m1 0h2m4 0h1m1 0h2m2 0h2m2 0h3m1 0h1m1 0h2m3 0h1m1 0h1M1 21.5h1m1 0h1m2 0h5m1 0h1m2 0h3m1 0h1m1 0h4m1 0h7m1 0h1m4 0h1M3 22.5h3m4 0h8m1 0h2m1 0h1m1 0h2m1 0h1m2 0h1m1 0h2m1 0h4m1 0h2M1 23.5h1m5 0h2m3 0h2m2 0h2m3 0h1m1 0h1m3 0h3m1 0h1m1 0h1m1 0h1m2 0h1M4 24.5h1m8 0h1m1 0h1m1 0h1m1 0h5m1 0h1m1 0h2m2 0h1m2 0h4m2 0h2M2 25.5h1m1 0h2m1 0h2m2 0h2m1 0h2m1 0h3m1 0h1m1 0h1m2 0h2m2 0h1m1 0h1m6 0h2M2 26.5h3m3 0h2m1 0h1m1 0h5m1 0h2m1 0h1m1 0h2m1 0h1m4 0h1m1 0h4m1 0h3M2 27.5h1m1 0h1m2 0h1m1 0h3m5 0h3m2 0h1m3 0h1m1 0h2m1 0h1m1 0h2m1 0h2M4 28.5h2m10 0h1m3 0h5m2 0h1m1 0h1m3 0h3m1 0h2M1 29.5h1m1 0h1m2 0h2m1 0h1m4 0h5m4 0h5m1 0h3m6 0h4M1 30.5h4m4 0h2m3 0h1m1 0h2m1 0h1m1 0h1m2 0h1m1 0h1m2 0h1m2 0h2m1 0h1m1 0h1m3 0h1M1 31.5h1m5 0h3m1 0h1m4 0h2m5 0h1m1 0h1m2 0h2m1 0h1m1 0h1m1 0h2m3 0h1M1 32.5h1m4 0h1m2 0h2m1 0h2m1 0h2m2 0h2m1 0h2m4 0h2m2 0h1m2 0h1m1 0h2M1 33.5h1m3 0h1m1 0h3m1 0h1m4 0h3m2 0h1m3 0h4m1 0h1m2 0h5m1 0h1M9 34.5h1m2 0h1m3 0h1m1 0h5m1 0h1m2 0h1m1 0h3m1 0h1m3 0h1m1 0h1m1 0h1M1 35.5h7m2 0h5m3 0h1m3 0h1m2 0h2m1 0h2m2 0h2m1 0h1m1 0h1m2 0h1M1 36.5h1m5 0h1m1 0h1m1 0h1m1 0h1m3 0h7m1 0h1m1 0h3m2 0h2m3 0h2M1 37.5h1m1 0h3m1 0h1m1 0h1m3 0h5m3 0h1m3 0h3m1 0h2m2 0h5m1 0h1m1 0h1M1 38.5h1m1 0h3m1 0h1m1 0h7m1 0h4m1 0h3m6 0h2m3 0h1m1 0h4M1 39.5h1m1 0h3m1 0h1m1 0h4m4 0h1m1 0h1m2 0h1m3 0h4m1 0h2m2 0h1m1 0h2M1 40.5h1m5 0h1m3 0h2m1 0h2m2 0h1m1 0h4m1 0h1m2 0h1m2 0h3m3 0h2m1 0h1M1 41.5h7m1 0h2m1 0h1m1 0h6m1 0h1m3 0h2m1 0h1m1 0h1m4 0h1m1 0h3"/></svg>
+</div>
+    <div>
+      <h2 id="open">Open the beta</h2>
+      <p>Finish the steps below first, then scan this code with your phone.</p>
+      <p>Already on your phone? Copy the link and paste it into Expo Go.</p>
+      <div class="link">
+        <code id="beta-link">exp://u.expo.dev/557a648d-450c-479e-a199-3aa591f7993e?channel-name=expo-go&amp;runtime-version=exposdk:58.0.0</code>
+        <button type="button" class="ghost" id="copy">Copy link</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="steps">
+    <h2 id="steps">Set up, step by step</h2>
+    <ol class="steps">
+      <li><div>
+        <p class="step-title">Install Expo Go</p>
+        <p class="step-body">It's free. Use the latest version from your app store.</p>
+        <div class="stores">
+          <a class="btn" href="https://apps.apple.com/app/expo-go/id982107779">App Store (iPhone)</a>
+          <a class="btn" href="https://play.google.com/store/apps/details?id=host.exp.exponent">Google Play (Android)</a>
+        </div>
+      </div></li>
+      <li><div>
+        <p class="step-title">Accept your invite to the Raco team on Expo</p>
+        <p class="step-body">The beta is private. You'll get an email invite from Expo to join the Raco team. Accept it, and create a free Expo account if you don't have one. No invite yet? Ask whoever sent you this page.</p>
+      </div></li>
+      <li><div>
+        <p class="step-title">Sign in to Expo Go</p>
+        <p class="step-body">Open Expo Go, tap your profile, choose <strong>Log in</strong>, and use the same Expo account you accepted the invite with.</p>
+      </div></li>
+      <li><div>
+        <p class="step-title">Scan the QR code</p>
+        <p class="step-body"><strong>iPhone:</strong> point the Camera app at the code and tap the banner. <strong>Android:</strong> open Expo Go and tap <strong>Scan QR code</strong>. The first load takes up to a minute.</p>
+      </div></li>
+      <li><div>
+        <p class="step-title">Sign in to Raco</p>
+        <p class="step-body">Tap <strong>Sign up with email</strong>, enter any email address, then enter the code <span class="code">123456</span>. No real email is sent in the beta.</p>
+      </div></li>
+    </ol>
+  </section>
+
+  <section class="card" aria-labelledby="try">
+    <h2 id="try">What to try</h2>
+    <ul class="plain">
+      <li><strong>Chat:</strong> ask anything from the home screen. Under each reply you can copy it, hear it read aloud, save it to your Library, or report it.</li>
+      <li><strong>Menu:</strong> tap ☰ or swipe in from the left edge. Long-press a chat to pin, rename or delete it.</li>
+      <li><strong>Projects, Library and Daily tasks:</strong> all in the menu. Projects keep their own chats and tasks.</li>
+      <li><strong>Voice mode:</strong> tap the round button in the message bar. Raco answers out loud.</li>
+      <li><strong>Profile and Settings:</strong> tap your name at the bottom of the menu.</li>
+    </ul>
+    <div class="note"><strong>This is a demo build.</strong> Replies are samples, not real AI answers yet, and your chats and tasks reset when Expo Go restarts. In Expo Go you type to voice mode; talking to it needs the full Raco app.</div>
+  </section>
+
+  <section class="card" aria-labelledby="updates">
+    <h2 id="updates">Getting new versions</h2>
+    <p class="step-body">Each update is published to the same link. To get the newest one, close Raco completely in Expo Go (swipe it away) and open it again from <strong>Recently opened</strong> or this QR code.</p>
+  </section>
+
+  <section class="card" aria-labelledby="help">
+    <h2 id="help">If something goes wrong</h2>
+    <dl>
+      <div><dt>"Not viewable in Expo Go: this project requires authentication"</dt>
+        <dd>You're not signed in to Expo Go, or your account hasn't joined the Raco team yet. Do steps 2 and 3, then scan again.</dd></div>
+      <div><dt>"Project is incompatible with this version of Expo Go"</dt>
+        <dd>Update Expo Go from the App Store or Google Play, then scan again.</dd></div>
+      <div><dt>You see an old version</dt>
+        <dd>Close Raco fully in Expo Go and reopen it.</dd></div>
+      <div><dt>The camera doesn't recognise the code</dt>
+        <dd>Open this page on your phone, tap <strong>Copy link</strong>, and paste it into your browser or Expo Go.</dd></div>
+    </dl>
+  </section>
+
+  <footer>Raco beta · Thanks for testing. Screenshots and notes help the most.</footer>
+</main>
+<script>
+(() => {
+  const button = document.getElementById('copy');
+  const text = document.getElementById('beta-link').textContent.trim();
+  button.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      button.textContent = 'Copied';
+    } catch {
+      const range = document.createRange();
+      range.selectNodeContents(document.getElementById('beta-link'));
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      button.textContent = 'Selected, copy it';
+    }
+    setTimeout(() => (button.textContent = 'Copy link'), 2000);
+  });
+})();
+</script>
+</body>
+</html>
