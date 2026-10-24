@@ -60,7 +60,7 @@
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run src/lib",
-    "publish:expo-go": "npx eas-cli@latest init --non-interactive --force && EXPO_PUBLIC_DEMO=1 npx eas-cli@latest update --branch expo-go --message \"Expo Go demo\" --non-interactive"
+    "publish:expo-go": "EXPO_PUBLIC_DEMO=1 npx eas-cli@latest update --branch expo-go --message \"Expo Go demo\" --non-interactive"
   },
   "private": true,
   "expoGo": {
