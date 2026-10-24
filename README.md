@@ -71,6 +71,12 @@ allowed redirect URLs.
 The app uses native modules (speech recognition, Face ID, Sign in with Apple,
 secure storage), so it can't run in Expo Go. Build it with EAS instead.
 
+**Open the latest build in Expo Go:** sign in to Expo Go with the Expo
+account that owns the project, then scan `docs/expo-go-qr.png` or open
+`exp://u.expo.dev/557a648d-450c-479e-a199-3aa591f7993e?channel-name=expo-go&runtime-version=exposdk:58.0.0`.
+That link follows the `expo-go` channel, so it always loads the newest
+publish (change `exposdk:58.0.0` if the SDK changes).
+
 **Quickest: Expo Go.** Install Expo Go from the App Store or Play Store.
 `npm run publish:expo-go` (in `apps/mobile`, signed in to the linked Expo project via `npx
 eas-cli login` or `EXPO_TOKEN`) publishes the demo app as an update and prints
