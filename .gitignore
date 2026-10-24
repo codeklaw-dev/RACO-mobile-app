@@ -13,3 +13,4 @@ android/
 coverage/
 supabase/.branches
 supabase/.temp
+dist-preview/
