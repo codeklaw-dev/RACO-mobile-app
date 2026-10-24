@@ -136,3 +136,12 @@ export const radius = {
 
 /** Screen padding from the design (62px top includes the status bar area). */
 export const gutter = 24;
+
+/**
+ * A CSS gradient as a view background. React Native (0.86) takes it as
+ * `experimental_backgroundImage`; react-native-web passes `backgroundImage`
+ * through to CSS. Both are set so it works everywhere.
+ */
+export function gradient(css: string): object {
+  return { experimental_backgroundImage: css, backgroundImage: css };
+}

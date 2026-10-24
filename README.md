@@ -4,7 +4,7 @@ RACO's AI assistant app for iOS and Android, with its API and database.
 
 | Path | What it is |
 |---|---|
-| `apps/mobile` | The app: Expo SDK 58 / React Native 0.88, Expo Router, TypeScript |
+| `apps/mobile` | The app: Expo SDK 57 / React Native 0.86 (the SDK App Store Expo Go supports), Expo Router, TypeScript |
 | `apps/api` | The API the app talks to: Hono on Node 22. Holds the AI keys, streams Claude replies, enforces quotas, records usage |
 | `packages/shared` | Types and validation shared by the app and the API |
 | `supabase/migrations` | Postgres schema with row level security |

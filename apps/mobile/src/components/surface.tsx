@@ -1,5 +1,5 @@
 import { View, type ViewProps, type ViewStyle } from 'react-native';
-import { accentSurface, useTheme, type Surface as SurfaceTokens } from '@/theme';
+import { accentSurface, gradient, useTheme, type Surface as SurfaceTokens } from '@/theme';
 
 export type SurfaceKind = 'glass' | 'primary' | 'accent' | 'field';
 
@@ -16,7 +16,7 @@ export function surfaceStyle(s: SurfaceTokens): ViewStyle {
     borderColor: s.borderColor,
     borderWidth: 1,
     boxShadow: s.boxShadow,
-    ...(s.backgroundImage ? { backgroundImage: s.backgroundImage } : null),
+    ...(s.backgroundImage ? gradient(s.backgroundImage) : null),
   };
 }
 

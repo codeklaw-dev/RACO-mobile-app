@@ -1,7 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import { useState } from 'react';
 import { AccessibilityInfo, Text, View, type LayoutChangeEvent } from 'react-native';
-import { GestureDetector, usePanGesture } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { interpolate, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import { accentSurface, fonts, useTheme } from '@/theme';
@@ -38,22 +38,19 @@ export function SlideToStart({ label, onComplete, disabled }: Props) {
     onComplete();
   };
 
-  const pan = usePanGesture({
-    enabled: !disabled,
-    onUpdate: (e) => {
-      'worklet';
+  const pan = Gesture.Pan()
+    .enabled(!disabled)
+    .onUpdate((e) => {
       x.value = Math.min(Math.max(e.translationX, 0), maxShared.value);
-    },
-    onDeactivate: () => {
-      'worklet';
+    })
+    .onEnd(() => {
       if (maxShared.value > 0 && x.value >= maxShared.value * THRESHOLD) {
         x.value = withTiming(maxShared.value, { duration: 120 });
         scheduleOnRN(complete);
       } else {
         x.value = withSpring(0, { damping: 18, stiffness: 220 });
       }
-    },
-  });
+    });
 
   const knob = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
   const labelStyle = useAnimatedStyle(() => ({
