@@ -138,9 +138,9 @@ export const radius = {
 export const gutter = 24;
 
 /**
- * A CSS gradient as a view background. React Native (0.86) takes it as
- * `experimental_backgroundImage`; react-native-web passes `backgroundImage`
- * through to CSS. Both are set so it works everywhere.
+ * A CSS gradient as a view background. React Native 0.88 and web take
+ * `backgroundImage`; older React Native (0.86, SDK 57) only
+ * `experimental_backgroundImage`. Both are set so either SDK works.
  */
 export function gradient(css: string): object {
   return { experimental_backgroundImage: css, backgroundImage: css };

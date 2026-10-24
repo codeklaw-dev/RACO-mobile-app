@@ -2,7 +2,7 @@ import * as Haptics from 'expo-haptics';
 import * as Linking from 'expo-linking';
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Platform, Pressable, Text, TextInput, View } from 'react-native';
+import { Platform, Pressable, Text, TextInput, View, type TextInputInstance } from 'react-native';
 import { Button } from '@/components/button';
 import { ChevronRightIcon, MailIcon } from '@/components/icons';
 import { Screen } from '@/components/screen';
@@ -20,7 +20,7 @@ export default function Verify() {
   const field = useSurface('field');
   const glass = useSurface('glass');
   const { email } = useLocalSearchParams<{ email: string }>();
-  const input = useRef<TextInput>(null);
+  const input = useRef<TextInputInstance>(null);
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);

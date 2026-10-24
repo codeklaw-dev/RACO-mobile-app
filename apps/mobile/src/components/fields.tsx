@@ -1,6 +1,6 @@
 import * as Haptics from 'expo-haptics';
 import { forwardRef, useState } from 'react';
-import { Pressable, Text, TextInput, View, type TextInputProps } from 'react-native';
+import { Pressable, Text, TextInput, View, type TextInputInstance, type TextInputProps } from 'react-native';
 import { accent, fonts, noWebOutline, useTheme } from '@/theme';
 import { Caption } from './text';
 import { surfaceStyle, useSurface } from './surface';
@@ -12,7 +12,7 @@ interface FieldProps extends TextInputProps {
 }
 
 /** Labelled 54pt input with the accent focus ring from the design. */
-export const TextField = forwardRef<TextInput, FieldProps>(function TextField(
+export const TextField = forwardRef<TextInputInstance, FieldProps>(function TextField(
   { label, hint, error, style, onFocus, onBlur, ...rest },
   ref,
 ) {
