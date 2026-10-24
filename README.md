@@ -81,6 +81,28 @@ npx eas-cli@latest build --profile development --platform ios
 On a physical phone, set `EXPO_PUBLIC_API_URL` to your computer's LAN IP, not
 `localhost`.
 
+### Testing on several simulators
+
+[simslim](https://github.com/MobAI-App/simslim) (macOS) turns off simulator
+background services Raco doesn't use, cutting each iOS simulator from about
+4 GB to under 1 GB, so you can run a small iPhone, a large one and an iPad side
+by side.
+
+Keep the `siri` group (speech recognition, used by voice onboarding and voice
+mode) and the `store` group (push notifications, used by check-ins and urgent
+calls):
+
+```bash
+brew install mobai-app/tap/simslim
+xcrun simctl list devices               # find the simulator's UDID
+simslim on <udid> --except siri,store   # slim it and reboot
+simslim measure <udid>                  # memory footprint
+simslim off <udid>                      # back to stock
+```
+
+For layout-only checks where voice and notifications don't matter, plain
+`simslim on <udid>` is the lightest.
+
 ## Checks
 
 ```bash
