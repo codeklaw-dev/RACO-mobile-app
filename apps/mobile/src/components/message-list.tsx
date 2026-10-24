@@ -3,13 +3,13 @@ import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
-import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import { reportMessage } from '@/lib/api';
 import { saveToLibrary } from '@/lib/data';
 import { notify } from '@/lib/dialog';
 import { toPlainText } from '@/lib/markdown';
 import { speak, stopSpeaking } from '@/lib/voice';
 import type { UiMessage } from '@/state/use-chat';
+import { ThinkingOrb } from '@/vendor/thinking-orbs-native';
 import { fonts, useTheme } from '@/theme';
 import { useActionSheet } from './action-sheet';
 import { IconButton } from './button';
@@ -197,23 +197,14 @@ function AssistantMessage({
   );
 }
 
-/** A single pulsing dot while the reply hasn't started. */
+/** A small dotted orb while the reply hasn't started (thinking-orbs, "working"). */
 function ThinkingDot() {
   const t = useTheme();
-  const reduced = useReducedMotion();
-  const scale = useSharedValue(0.7);
-  useEffect(() => {
-    if (!reduced) scale.value = withRepeat(withTiming(1, { duration: 650 }), -1, true);
-  }, [scale, reduced]);
-  const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
   return (
-    <Animated.View
-      accessibilityLabel="Thinking"
-      style={[
-        { width: 14, height: 14, borderRadius: 7, marginVertical: 6, backgroundColor: t.scheme === 'light' ? '#2A2A2B' : '#F2F2F3' },
-        style,
-      ]}
-    />
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 }}>
+      <ThinkingOrb state="working" size={20} displaySize={24} theme={t.scheme} accessibilityLabel="Thinking" />
+      <Text style={{ fontFamily: fonts.body, fontSize: 15, color: t.faint }}>Thinking</Text>
+    </View>
   );
 }
 
