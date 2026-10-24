@@ -23,6 +23,19 @@ Every change must keep the app able to pass App Review.
   update the privacy manifest, purpose strings and the compliance doc in the
   same change.
 
+## Expo Go compatibility
+
+The app must always open in Expo Go from the App Store and Play Store.
+
+- Keep `expo` on the SDK in `apps/mobile/package.json` → `expoGo.sdk`. Expo
+  ships store Expo Go for a new SDK weeks after the SDK itself; only upgrade
+  once it is out (check expo.dev/changelog), then bump `expoGo.sdk`.
+- Upgrade with `npx expo install expo@^<sdk> --fix`, and keep the root
+  `overrides` for react, react-dom and react-native equal to the mobile app's
+  versions so there is only one copy of each.
+- Only use native modules that Expo Go includes, or load others lazily with a
+  fallback (see `src/lib/voice.ts`). `npm run apple-check` checks the SDK.
+
 ## Checks
 
 ```bash

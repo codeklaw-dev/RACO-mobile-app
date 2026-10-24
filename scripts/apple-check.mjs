@@ -22,6 +22,8 @@ const source = (dir) =>
     .join('\n');
 
 const app = json('apps/mobile/app.json').expo;
+const mobilePkg = json('apps/mobile/package.json');
+const rootPkg = json('package.json');
 const eas = json('apps/mobile/eas.json');
 const mobile = source('apps/mobile/src');
 const api = source('apps/api/src');
@@ -79,6 +81,13 @@ const checks = [
   ],
   ['No downloaded or evaluated code (2.5.2)', () => !/\beval\(|new Function\(/.test(mobile)],
   ['No payment links outside in-app purchase (3.1.1)', () => !/stripe|paypal|checkout\.|buy\.|\/pricing/i.test(mobile)],
+  [
+    'Expo SDK matches App Store Expo Go, one React Native copy',
+    () => {
+      const major = Number(mobilePkg.dependencies.expo.replace(/^[~^]/, '').split('.')[0]);
+      return major === mobilePkg.expoGo?.sdk && rootPkg.overrides?.['react-native'] === mobilePkg.dependencies['react-native'];
+    },
+  ],
   [
     'Face ID through LocalAuthentication (2.5.13)',
     () => /expo-local-authentication/.test(mobile) && !/ARKit|expo-face-detector/.test(mobile),

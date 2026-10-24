@@ -9,7 +9,7 @@ import Animated, {
   withRepeat,
   withTiming,
 } from 'react-native-reanimated';
-import { accent, fonts, useTheme } from '@/theme';
+import { accent, fonts, gradient, useTheme } from '@/theme';
 
 export type VoiceStatus = 'idle' | 'speaking' | 'listening' | 'thinking';
 
@@ -51,7 +51,7 @@ export function VoiceStage({ status, said, footnote, top }: { status: VoiceStatu
         borderRadius: 38,
         overflow: 'hidden',
         padding: 22,
-        backgroundImage: t.stageGradient,
+        ...gradient(t.stageGradient),
         boxShadow:
           t.scheme === 'light'
             ? 'inset 0 0 0 1px rgba(255,255,255,0.55), 0 18px 40px rgba(42,42,43,0.14)'
