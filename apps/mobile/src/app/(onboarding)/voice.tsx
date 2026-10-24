@@ -131,6 +131,8 @@ export default function VoiceOnboarding() {
   );
 
   const mic = useHoldToTalk((transcript) => void answer(transcript));
+  // If the mic can't be used here, answers are typed instead (no error shown).
+  const typingMode = typing || mic.unavailable;
 
   async function start() {
     const ok = await requestMicrophone();
@@ -168,8 +170,6 @@ export default function VoiceOnboarding() {
               {mic.partial ? '' : 'You said: '}
               <Text style={{ fontFamily: fonts.bodySemibold }}>“{mic.partial || heard}”</Text>
             </Text>
-          ) : step === 'name' && status === 'idle' ? (
-            <Text style={{ fontFamily: fonts.body, fontSize: 15, color: t.faint }}>Say your name</Text>
           ) : null
         }
       />
@@ -224,11 +224,12 @@ export default function VoiceOnboarding() {
         {phase === 'calls' ? <CallsCard busy={status === 'thinking'} onChoose={(v) => void chooseCalls(v)} /> : null}
         {phase === 'summary' ? <Summary callsAllowed={callsAllowed} /> : null}
 
-        {step && (!(step === 'agent' || step === 'calls') || renaming || choseTyping || !typing) ? (
+        {step && (!(step === 'agent' || step === 'calls') || renaming || choseTyping || !typingMode) ? (
           <AnswerBar
-            typing={typing}
+            typing={typingMode}
+            micUnavailable={mic.unavailable}
             onType={() => {
-              setChoseTyping(!typing);
+              setChoseTyping(!typingMode);
               setTyping((v) => !v);
             }}
             compact={step === 'agent' || step === 'calls'}
@@ -239,17 +240,6 @@ export default function VoiceOnboarding() {
             onSubmit={(text) => void answer(text)}
             placeholder={step === 'agent' ? 'Type a new name, or "keep"' : 'Type your answer'}
           />
-        ) : null}
-        {mic.error ? (
-          <Text
-            style={{
-              textAlign: 'center',
-              fontFamily: fonts.bodyMedium,
-              fontSize: 14,
-              color: t.faint,
-            }}>
-            {mic.error}
-          </Text>
         ) : null}
       </View>
     </KeyboardAvoidingView>
@@ -491,6 +481,7 @@ function Summary({ callsAllowed }: { callsAllowed: boolean | null }) {
 
 interface AnswerBarProps {
   typing: boolean;
+  micUnavailable: boolean;
   onType: () => void;
   listening: boolean;
   disabled: boolean;
@@ -503,12 +494,23 @@ interface AnswerBarProps {
 }
 
 /** "Hold to talk", with a keyboard toggle for typing the answer instead. */
-function AnswerBar({ typing, onType, listening, disabled, onPressIn, onPressOut, onSubmit, placeholder, compact }: AnswerBarProps) {
+function AnswerBar({
+  typing,
+  micUnavailable,
+  onType,
+  listening,
+  disabled,
+  onPressIn,
+  onPressOut,
+  onSubmit,
+  placeholder,
+  compact,
+}: AnswerBarProps) {
   const t = useTheme();
   const primary = useSurface('primary');
   const field = useSurface('field');
   const [text, setText] = useState('');
-  const canTalk = speechRecognitionAvailable();
+  const canTalk = speechRecognitionAvailable() && !micUnavailable;
 
   const submit = () => {
     if (!text.trim() || disabled) return;

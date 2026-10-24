@@ -80,11 +80,13 @@ export async function requestMicrophone(): Promise<boolean> {
 /**
  * Hold-to-talk: `start` on press, `stop` on release. `onFinal` receives the
  * transcript once recognition ends; `partial` shows it while speaking.
+ * `unavailable` turns true when the mic can't be used here (permission
+ * denied, no recogniser), so the screen can switch to typing.
  */
 export function useHoldToTalk(onFinal: (transcript: string) => void) {
   const [listening, setListening] = useState(false);
   const [partial, setPartial] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [unavailable, setUnavailable] = useState(false);
   const latest = useRef('');
   const onFinalRef = useRef(onFinal);
   useEffect(() => {
@@ -105,20 +107,22 @@ export function useHoldToTalk(onFinal: (transcript: string) => void) {
     if (t) onFinalRef.current(t);
   });
   useSpeechRecognitionEvent('error', (e) => {
-    if (e.error === 'aborted' || e.error === 'no-speech') return;
-    setError("I couldn't hear that. Try again, or type your answer.");
+    // Nothing heard is fine: the user just tries again. Anything else means
+    // the mic can't be used here.
+    if (e.error === 'aborted' || e.error === 'no-speech' || e.error === 'speech-timeout') return;
+    setListening(false);
+    setUnavailable(true);
   });
 
   const start = useCallback(() => {
     stopSpeaking();
-    setError(null);
     latest.current = '';
     ExpoSpeechRecognitionModule.start({ lang: 'en-US', interimResults: true, continuous: true, addsPunctuation: true });
   }, []);
 
   const stop = useCallback(() => ExpoSpeechRecognitionModule.stop(), []);
 
-  return { listening, partial, error, start, stop };
+  return { listening, partial, unavailable, start, stop };
 }
 
 // ---------------------------------------------------------------------------
