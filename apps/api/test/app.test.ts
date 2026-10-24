@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import type { ChatStreamEvent } from '@raco/shared';
 import { createApp, HISTORY_LIMIT } from '../src/app';
+import { devTokenVerifier } from '../src/memory-store';
 import type { CompletionEvent, CompletionRequest, Llm } from '../src/llm';
 import { buildSystemPrompt, titleFromMessage } from '../src/prompt';
 import { interpretLocally } from '@raco/shared';
@@ -273,5 +274,13 @@ describe('prompt helpers', () => {
     expect(title.length).toBeLessThanOrEqual(61);
     expect(title.endsWith('…')).toBe(true);
     expect(title).not.toMatch(/\s…$/);
+  });
+});
+
+describe('devTokenVerifier', () => {
+  it('accepts only dev:<name> tokens', async () => {
+    expect(await devTokenVerifier('dev:sam')).toEqual({ id: 'sam' });
+    expect(await devTokenVerifier('eyJhbGciOi.x.y')).toBeNull();
+    expect(await devTokenVerifier('dev:../etc')).toBeNull();
   });
 });

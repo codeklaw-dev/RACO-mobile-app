@@ -2,8 +2,11 @@ import { z } from 'zod';
 
 const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(8787),
-  SUPABASE_URL: z.url(),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
+  // "supabase" for real data; "memory" runs locally with no database and a
+  // development login (bearer token "dev:<name>"). Never use memory in production.
+  STORE: z.enum(['supabase', 'memory']).default('supabase'),
+  SUPABASE_URL: z.url().optional(),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
   // "anthropic" (Claude) or "openai-compatible" (your own model server).
   LLM_PROVIDER: z.enum(['anthropic', 'openai-compatible']).default('anthropic'),
   ANTHROPIC_API_KEY: z.string().optional(),
@@ -20,8 +23,12 @@ const envSchema = z.object({
 
 const checkedEnvSchema = envSchema.superRefine((env, ctx) => {
   const need = (key: keyof typeof env) => {
-    if (!env[key]) ctx.addIssue({ code: 'custom', path: [key], message: `${key} is required for LLM_PROVIDER=${env.LLM_PROVIDER}` });
+    if (!env[key]) ctx.addIssue({ code: 'custom', path: [key], message: `${key} is required with this configuration` });
   };
+  if (env.STORE === 'supabase') {
+    need('SUPABASE_URL');
+    need('SUPABASE_SERVICE_ROLE_KEY');
+  }
   if (env.LLM_PROVIDER === 'anthropic') need('ANTHROPIC_API_KEY');
   else {
     need('LLM_BASE_URL');

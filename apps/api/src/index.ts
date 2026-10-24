@@ -3,6 +3,7 @@ import { createApp } from './app';
 import { supabaseTokenVerifier } from './auth';
 import { loadEnv } from './env';
 import { AnthropicLlm } from './llm';
+import { devTokenVerifier, MemoryStore } from './memory-store';
 import { SupabaseStore } from './store';
 import { OpenAICompatibleLlm, OpenAICompatibleVoiceInterpreter } from './openai-compatible';
 import { ClaudeVoiceInterpreter } from './voice';
@@ -24,9 +25,19 @@ function models() {
   };
 }
 
+function data() {
+  if (env.STORE === 'memory') {
+    console.warn('STORE=memory: data is kept in memory and anyone can sign in with "dev:<name>". Local use only.');
+    return { verifyToken: devTokenVerifier, store: new MemoryStore() };
+  }
+  return {
+    verifyToken: supabaseTokenVerifier(env.SUPABASE_URL!),
+    store: new SupabaseStore(env.SUPABASE_URL!, env.SUPABASE_SERVICE_ROLE_KEY!),
+  };
+}
+
 const app = createApp({
-  verifyToken: supabaseTokenVerifier(env.SUPABASE_URL),
-  store: new SupabaseStore(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY),
+  ...data(),
   ...models(),
   corsOrigins: env.CORS_ORIGINS,
 });

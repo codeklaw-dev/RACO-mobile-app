@@ -47,6 +47,19 @@ cp apps/mobile/.env.example apps/mobile/.env  # Supabase URL + publishable key, 
 npm run mobile
 ```
 
+### Trying the API without a database
+
+`STORE=memory` keeps everything in memory and accepts the bearer token
+`dev:<name>` as a login, so you can exercise the whole chat path with no
+Supabase project. It is for local use only.
+
+```bash
+npm run fake-model -w apps/api   # stand-in model on :9100 (or point LLM_BASE_URL at a real one)
+npm run dev:local -w apps/api    # API on :8787
+curl -N localhost:8787/v1/chat -H 'authorization: Bearer dev:sam' \
+  -H 'content-type: application/json' -d '{"message":"Plan my week"}'
+```
+
 In Supabase, enable **Email** sign-in with a 6-digit code (Authentication → Email
 templates: use `{{ .Token }}` in the template), and add **Apple** and **Google**
 providers when you have their credentials. Add `raco://auth/callback` to the

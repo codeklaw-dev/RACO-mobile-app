@@ -32,6 +32,8 @@ interface DemoChat {
   messages: { id: string; role: 'user' | 'assistant'; content: string; created_at: string }[];
 }
 
+const STORAGE_KEY = 'raco-demo-state';
+
 const state = {
   email: 'sam@company.com',
   profile: {
@@ -44,6 +46,27 @@ const state = {
   },
   chats: [] as DemoChat[],
 };
+loadState();
+
+// The preview keeps its profile and chats in the browser, so a reload picks
+// up where the viewer left off. Storage can be unavailable (private
+// windows, blocked site data): the demo then just starts fresh each time.
+function loadState() {
+  try {
+    const saved = globalThis.localStorage?.getItem(STORAGE_KEY);
+    if (saved) Object.assign(state, JSON.parse(saved));
+  } catch {
+    // Start fresh.
+  }
+}
+
+function saveState() {
+  try {
+    globalThis.localStorage?.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // Not saved; fine for a preview.
+  }
+}
 
 const json = (body: unknown, status = 200, headers: Record<string, string> = {}) =>
   new Response(status === 204 ? null : JSON.stringify(body), { status, headers: { 'content-type': 'application/json', ...headers } });
@@ -58,6 +81,7 @@ export async function demoFetch(input: RequestInfo | URL, init?: RequestInit): P
   switch (url.pathname) {
     case '/auth/v1/otp':
       state.email = body?.email ?? state.email;
+      saveState();
       return json({});
     case '/auth/v1/verify':
     case '/auth/v1/token':
@@ -70,6 +94,7 @@ export async function demoFetch(input: RequestInfo | URL, init?: RequestInit): P
     case '/rest/v1/profiles':
       if (method === 'PATCH') {
         Object.assign(state.profile, body);
+        saveState();
         return json(null, 204);
       }
       return json(state.profile);
@@ -77,6 +102,7 @@ export async function demoFetch(input: RequestInfo | URL, init?: RequestInit): P
       if (method === 'DELETE') {
         const id = url.searchParams.get('id')?.replace('eq.', '');
         state.chats = state.chats.filter((c) => c.id !== id);
+        saveState();
         return json(null, 204);
       }
       const range = { 'content-range': `0-${Math.max(state.chats.length - 1, 0)}/${state.chats.length}` };
@@ -166,6 +192,7 @@ export async function* demoStreamChat(
     state.chats.push(chat);
   }
   chat.messages.push({ id: `m-${Date.now()}`, role: 'user', content: req.message, created_at: now() });
+  saveState();
   yield { type: 'conversation', conversationId: chat.id, title: chat.title };
 
   let sent = '';
@@ -204,5 +231,6 @@ export async function* demoStreamChat(
   const id = `m-${Date.now()}`;
   chat.messages.push({ id, role: 'assistant', content: sent, created_at: now() });
   chat.updated_at = now();
+  saveState();
   yield { type: 'done', messageId: id };
 }
