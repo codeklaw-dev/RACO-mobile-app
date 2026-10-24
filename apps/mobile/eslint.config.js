@@ -5,6 +5,7 @@ const expoConfig = require('eslint-config-expo/flat');
 module.exports = defineConfig([
   expoConfig,
   {
-    ignores: ['dist/*', '.expo/*'],
+    // Third-party source kept as published (see src/vendor/*/README.md).
+    ignores: ['dist/*', '.expo/*', 'src/vendor/**'],
   },
 ]);
