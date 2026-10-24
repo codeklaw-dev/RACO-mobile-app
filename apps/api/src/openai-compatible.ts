@@ -1,6 +1,14 @@
-import { interpretLocally, type VoiceTurnRequest, type VoiceTurnResult } from '@raco/shared';
+import {
+  interpretLocally,
+  toVoiceResult,
+  VOICE_SYSTEM_PROMPT,
+  voiceResultSchema,
+  voiceUserMessage,
+  type VoiceTurnRequest,
+  type VoiceTurnResult,
+} from '@raco/shared';
 import type { CompletionEvent, CompletionRequest, Llm } from './llm';
-import { toVoiceResult, VOICE_SYSTEM_PROMPT, voiceResultSchema, voiceUserMessage, type VoiceInterpreter } from './voice';
+import type { VoiceInterpreter } from './voice';
 
 /**
  * A self-hosted or third-party model behind an OpenAI-compatible API

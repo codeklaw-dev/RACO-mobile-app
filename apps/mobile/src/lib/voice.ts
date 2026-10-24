@@ -1,5 +1,9 @@
 import {
   interpretLocally,
+  toVoiceResult,
+  VOICE_SYSTEM_PROMPT,
+  voiceResultSchema,
+  voiceUserMessage,
   type VoiceTurnRequest,
   type VoiceTurnResult,
 } from '@raco/shared';
@@ -9,6 +13,7 @@ import { fetch } from 'expo/fetch';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { config } from './config';
 import { DEMO } from './demo';
+import { noteSampleError, previewSample } from './preview-ai';
 import { supabase } from './supabase';
 
 // ---------------------------------------------------------------------------
@@ -121,7 +126,7 @@ export function useHoldToTalk(onFinal: (transcript: string) => void) {
 // ---------------------------------------------------------------------------
 
 export async function voiceTurn(req: VoiceTurnRequest): Promise<VoiceTurnResult> {
-  if (DEMO) return interpretLocally(req);
+  if (DEMO) return previewVoiceTurn(req);
   try {
     const { data } = await supabase.auth.getSession();
     const res = await fetch(`${config.apiUrl}/v1/onboarding/voice-turn`, {
@@ -133,6 +138,23 @@ export async function voiceTurn(req: VoiceTurnRequest): Promise<VoiceTurnResult>
     return (await res.json()) as VoiceTurnResult;
   } catch {
     // Offline or API trouble: the rule-based reader still gets people through.
+    return interpretLocally(req);
+  }
+}
+
+/** In the web preview: Claude via the viewer when allowed, otherwise rules. */
+async function previewVoiceTurn(req: VoiceTurnRequest): Promise<VoiceTurnResult> {
+  const sample = await previewSample();
+  if (!sample) return interpretLocally(req);
+  try {
+    const out = await sample.json(
+      `${VOICE_SYSTEM_PROMPT}\n\nReply with only a JSON object with exactly these keys: understood, wantsTour, say, displayName, agentName, interests, callsAllowed (use null for keys that don't apply).\n\n${voiceUserMessage(req)}`,
+      { modelTier: 'quick' },
+    );
+    const parsed = voiceResultSchema.safeParse(out);
+    return parsed.success ? toVoiceResult(parsed.data) : interpretLocally(req);
+  } catch (err) {
+    noteSampleError(err);
     return interpretLocally(req);
   }
 }

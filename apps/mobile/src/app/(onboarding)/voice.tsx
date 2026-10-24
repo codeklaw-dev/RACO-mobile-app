@@ -12,9 +12,9 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Button } from '@/components/button';
+import { Button, IconButton } from '@/components/button';
 import { Chip } from '@/components/fields';
-import { ChevronRightIcon, MicIcon, PathIcon, PHONE_PATH } from '@/components/icons';
+import { ChevronRightIcon, MicIcon, PathIcon, PHONE_PATH, SendIcon } from '@/components/icons';
 import { surfaceStyle, useSurface } from '@/components/surface';
 import { VoiceStage, type VoiceStatus } from '@/components/voice-stage';
 import { formatTime, humanList } from '@/lib/greeting';
@@ -46,6 +46,9 @@ export default function VoiceOnboarding() {
   const [heard, setHeard] = useState<string | null>(null);
   const [typing, setTyping] = useState(!speechRecognitionAvailable());
   const [callsAllowed, setCallsAllowed] = useState<boolean | null>(null);
+  // On steps with buttons (agent name, calls) the text box only appears on request.
+  const [renaming, setRenaming] = useState(false);
+  const [choseTyping, setChoseTyping] = useState(false);
   const draftRef = useRef(draft);
   useEffect(() => {
     draftRef.current = draft;
@@ -72,6 +75,7 @@ export default function VoiceOnboarding() {
   const goTo = useCallback(
     async (next: Phase, acknowledgement: string) => {
       setPhase(next);
+      setRenaming(false);
       const nextQuestion =
         next === 'summary'
           ? `All set${draftRef.current.displayName ? `, ${draftRef.current.displayName}` : ''}. Here's what I've got.`
@@ -97,7 +101,12 @@ export default function VoiceOnboarding() {
       setHeard(transcript);
       setStatus('thinking');
       const d = draftRef.current;
-      const res = await voiceTurn({ step, transcript, agentName: d.agentName, displayName: d.displayName || undefined });
+      const res = await voiceTurn({
+        step,
+        transcript,
+        agentName: d.agentName,
+        displayName: d.displayName || undefined,
+      });
 
       if (res.wantsTour) {
         await say(
@@ -123,7 +132,6 @@ export default function VoiceOnboarding() {
 
   const mic = useHoldToTalk((transcript) => void answer(transcript));
 
-
   async function start() {
     const ok = await requestMicrophone();
     if (!ok) setTyping(true);
@@ -132,7 +140,9 @@ export default function VoiceOnboarding() {
 
   async function chooseCalls(allowed: boolean, acknowledgement?: string) {
     setCallsAllowed(allowed);
-    set({ notificationPrefs: allowed ? DEFAULT_NOTIFICATION_PREFS : CALLS_OFF });
+    set({
+      notificationPrefs: allowed ? DEFAULT_NOTIFICATION_PREFS : CALLS_OFF,
+    });
     if (allowed && Platform.OS !== 'web') await Notifications.requestPermissionsAsync().catch(() => {});
     advance('calls', acknowledgement ?? (allowed ? "Done. I'll only call when it matters." : "No problem. I'll stick to notifications."));
   }
@@ -147,7 +157,14 @@ export default function VoiceOnboarding() {
         top={top}
         footnote={
           mic.partial || heard ? (
-            <Text style={{ fontFamily: fonts.body, fontSize: 15, color: t.faint, textAlign: 'center' }}>
+            <Text
+              numberOfLines={1}
+              style={{
+                fontFamily: fonts.body,
+                fontSize: 15,
+                color: t.faint,
+                textAlign: 'center',
+              }}>
               {mic.partial ? '' : 'You said: '}
               <Text style={{ fontFamily: fonts.bodySemibold }}>“{mic.partial || heard}”</Text>
             </Text>
@@ -156,18 +173,37 @@ export default function VoiceOnboarding() {
           ) : null
         }
       />
-      <View style={{ paddingTop: 12, paddingHorizontal: 20, paddingBottom: Math.max(insets.bottom, 16) + 12, gap: 14 }}>
-        <View accessibilityElementsHidden style={{ alignSelf: 'center', width: 36, height: 5, borderRadius: 3, backgroundColor: t.stepTodo }} />
+      <View
+        style={{
+          paddingTop: 12,
+          paddingHorizontal: 20,
+          paddingBottom: Math.max(insets.bottom, 16) + 12,
+          gap: 14,
+        }}>
         <Text
           accessibilityRole="header"
           accessibilityLiveRegion="polite"
-          style={{ marginHorizontal: 4, fontFamily: fonts.display, fontSize: 25, lineHeight: 32, letterSpacing: -0.5, color: t.text }}>
+          style={{
+            marginHorizontal: 4,
+            fontFamily: fonts.display,
+            fontSize: 25,
+            lineHeight: 32,
+            letterSpacing: -0.5,
+            color: t.text,
+          }}>
           {question}
         </Text>
 
         {phase === 'intro' ? (
           <View style={{ gap: 12 }}>
-            <Text style={{ textAlign: 'center', fontFamily: fonts.body, fontSize: 14, lineHeight: 20, color: t.sub }}>
+            <Text
+              style={{
+                textAlign: 'center',
+                fontFamily: fonts.body,
+                fontSize: 14,
+                lineHeight: 20,
+                color: t.sub,
+              }}>
               {draft.agentName} only listens while you hold the talk button.
             </Text>
             <Button label="Allow microphone" icon={<MicIcon color={t.primary.color} />} onPress={start} />
@@ -175,15 +211,27 @@ export default function VoiceOnboarding() {
           </View>
         ) : null}
 
-        {phase === 'agent' ? <AgentCard onKeep={() => advance('agent', `Great, ${draft.agentName} it is.`)} onRename={() => setTyping(true)} /> : null}
+        {phase === 'agent' ? (
+          <AgentCard
+            onKeep={() => advance('agent', `Great, ${draft.agentName} it is.`)}
+            onRename={() => {
+              setRenaming(true);
+              setTyping(true);
+            }}
+          />
+        ) : null}
         {phase === 'uses' ? <UsesCard /> : null}
         {phase === 'calls' ? <CallsCard busy={status === 'thinking'} onChoose={(v) => void chooseCalls(v)} /> : null}
         {phase === 'summary' ? <Summary callsAllowed={callsAllowed} /> : null}
 
-        {step ? (
+        {step && (!(step === 'agent' || step === 'calls') || renaming || choseTyping || !typing) ? (
           <AnswerBar
             typing={typing}
-            onType={() => setTyping((v) => !v)}
+            onType={() => {
+              setChoseTyping(!typing);
+              setTyping((v) => !v);
+            }}
+            compact={step === 'agent' || step === 'calls'}
             listening={mic.listening}
             disabled={status === 'thinking'}
             onPressIn={mic.start}
@@ -192,7 +240,17 @@ export default function VoiceOnboarding() {
             placeholder={step === 'agent' ? 'Type a new name, or "keep"' : 'Type your answer'}
           />
         ) : null}
-        {mic.error ? <Text style={{ textAlign: 'center', fontFamily: fonts.bodyMedium, fontSize: 14, color: t.faint }}>{mic.error}</Text> : null}
+        {mic.error ? (
+          <Text
+            style={{
+              textAlign: 'center',
+              fontFamily: fonts.bodyMedium,
+              fontSize: 14,
+              color: t.faint,
+            }}>
+            {mic.error}
+          </Text>
+        ) : null}
       </View>
     </KeyboardAvoidingView>
   );
@@ -203,14 +261,45 @@ function AgentCard({ onKeep, onRename }: { onKeep: () => void; onRename: () => v
   const { draft } = useOnboarding();
   const glass = useSurface('glass');
   return (
-    <View style={[surfaceStyle(glass), { borderRadius: 20, paddingVertical: 14, paddingHorizontal: 16, gap: 12 }]}>
+    <View
+      style={[
+        surfaceStyle(glass),
+        {
+          borderRadius: 20,
+          paddingVertical: 14,
+          paddingHorizontal: 16,
+          gap: 12,
+        },
+      ]}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        <View style={{ width: 38, height: 38, borderRadius: 11, backgroundColor: t.tile, alignItems: 'center', justifyContent: 'center' }}>
+        <View
+          style={{
+            width: 38,
+            height: 38,
+            borderRadius: 11,
+            backgroundColor: t.tile,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
           <PathIcon color={t.text} d="M10 10a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM3.5 17.5a6.5 6.5 0 0 1 13 0" />
         </View>
         <View style={{ flex: 1, gap: 2 }}>
-          <Text style={{ fontFamily: fonts.bodySemibold, fontSize: 12, color: t.faint }}>Agent name</Text>
-          <Text style={{ fontFamily: fonts.bodySemibold, fontSize: 18, color: t.text }}>{draft.agentName}</Text>
+          <Text
+            style={{
+              fontFamily: fonts.bodySemibold,
+              fontSize: 12,
+              color: t.faint,
+            }}>
+            Agent name
+          </Text>
+          <Text
+            style={{
+              fontFamily: fonts.bodySemibold,
+              fontSize: 18,
+              color: t.text,
+            }}>
+            {draft.agentName}
+          </Text>
         </View>
       </View>
       <View style={{ flexDirection: 'row', gap: 10 }}>
@@ -227,10 +316,21 @@ function UsesCard() {
   const { draft, set } = useOnboarding();
   const [all, setAll] = useState(false);
   const toggle = (i: Interest) =>
-    set({ interests: draft.interests.includes(i) ? draft.interests.filter((x) => x !== i) : [...draft.interests, i] });
+    set({
+      interests: draft.interests.includes(i) ? draft.interests.filter((x) => x !== i) : [...draft.interests, i],
+    });
   const shown = all ? INTERESTS : draft.interests;
   return (
-    <View style={[surfaceStyle(glass), { borderRadius: 20, paddingVertical: 14, paddingHorizontal: 16, gap: 10 }]}>
+    <View
+      style={[
+        surfaceStyle(glass),
+        {
+          borderRadius: 20,
+          paddingVertical: 14,
+          paddingHorizontal: 16,
+          gap: 10,
+        },
+      ]}>
       <Text style={{ fontFamily: fonts.bodySemibold, fontSize: 12, color: t.faint }}>
         {draft.interests.length ? 'I’ll tailor suggestions for' : 'Say it, or tap to pick'}
       </Text>
@@ -242,9 +342,26 @@ function UsesCard() {
           <Pressable
             accessibilityRole="button"
             onPress={() => setAll(true)}
-            style={[surfaceStyle(glass), { height: 44, paddingHorizontal: 14, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
+            style={[
+              surfaceStyle(glass),
+              {
+                height: 44,
+                paddingHorizontal: 14,
+                borderRadius: 12,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 6,
+              },
+            ]}>
             <PathIcon color={t.text} d="M10 4.5v11M4.5 10h11" size={16} strokeWidth={1.9} />
-            <Text style={{ fontFamily: fonts.bodyMedium, fontSize: 15, color: t.text }}>Add</Text>
+            <Text
+              style={{
+                fontFamily: fonts.bodyMedium,
+                fontSize: 15,
+                color: t.text,
+              }}>
+              Add
+            </Text>
           </Pressable>
         ) : null}
       </View>
@@ -256,20 +373,57 @@ function CallsCard({ onChoose, busy }: { onChoose: (allowed: boolean) => void; b
   const t = useTheme();
   const glass = useSurface('glass');
   return (
-    <View style={[surfaceStyle(glass), { borderRadius: 20, paddingVertical: 14, paddingHorizontal: 16, gap: 12 }]}>
+    <View
+      style={[
+        surfaceStyle(glass),
+        {
+          borderRadius: 20,
+          paddingVertical: 14,
+          paddingHorizontal: 16,
+          gap: 12,
+        },
+      ]}>
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
-        <View style={{ width: 38, height: 38, borderRadius: 11, backgroundColor: t.tile, alignItems: 'center', justifyContent: 'center' }}>
+        <View
+          style={{
+            width: 38,
+            height: 38,
+            borderRadius: 11,
+            backgroundColor: t.tile,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
           <PathIcon color={t.text} d={PHONE_PATH} strokeWidth={1.7} />
         </View>
         <View style={{ flex: 1, gap: 3 }}>
-          <Text style={{ fontFamily: fonts.bodySemibold, fontSize: 16, color: t.text }}>Calls and notifications</Text>
-          <Text style={{ fontFamily: fonts.body, fontSize: 14, lineHeight: 19, color: t.sub }}>
-            Urgent reminders, a daily check-in at {formatTime(DEFAULT_NOTIFICATION_PREFS.dailyCheckIn.time)}, and a call when I need your input.
+          <Text
+            style={{
+              fontFamily: fonts.bodySemibold,
+              fontSize: 16,
+              color: t.text,
+            }}>
+            Calls and notifications
+          </Text>
+          <Text
+            style={{
+              fontFamily: fonts.body,
+              fontSize: 14,
+              lineHeight: 19,
+              color: t.sub,
+            }}>
+            Urgent reminders, a daily check-in at {formatTime(DEFAULT_NOTIFICATION_PREFS.dailyCheckIn.time)}, and a call when I need your
+            input.
           </Text>
         </View>
       </View>
       <View style={{ flexDirection: 'row', gap: 10 }}>
-        <Button kind="glass" label="Not now" disabled={busy} style={{ flex: 1, height: 46, borderRadius: 12 }} onPress={() => onChoose(false)} />
+        <Button
+          kind="glass"
+          label="Not now"
+          disabled={busy}
+          style={{ flex: 1, height: 46, borderRadius: 12 }}
+          onPress={() => onChoose(false)}
+        />
         <Button label="Allow" disabled={busy} style={{ flex: 1, height: 46, borderRadius: 12 }} onPress={() => onChoose(true)} />
       </View>
     </View>
@@ -296,9 +450,31 @@ function Summary({ callsAllowed }: { callsAllowed: boolean | null }) {
             accessibilityRole="button"
             accessibilityLabel={`${label}: ${value}. Change`}
             onPress={() => router.push('/name')}
-            style={{ minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: i < rows.length - 1 ? 1 : 0, borderBottomColor: t.hairline }}>
-            <Text style={{ width: 92, fontFamily: fonts.body, fontSize: 15, color: t.faint }}>{label}</Text>
-            <Text numberOfLines={1} style={{ flex: 1, fontFamily: fonts.bodySemibold, fontSize: 15, color: t.text }}>
+            style={{
+              minHeight: 44,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 10,
+              borderBottomWidth: i < rows.length - 1 ? 1 : 0,
+              borderBottomColor: t.hairline,
+            }}>
+            <Text
+              style={{
+                width: 92,
+                fontFamily: fonts.body,
+                fontSize: 15,
+                color: t.faint,
+              }}>
+              {label}
+            </Text>
+            <Text
+              numberOfLines={1}
+              style={{
+                flex: 1,
+                fontFamily: fonts.bodySemibold,
+                fontSize: 15,
+                color: t.text,
+              }}>
               {value}
             </Text>
             <ChevronRightIcon color={t.text} />
@@ -322,14 +498,15 @@ interface AnswerBarProps {
   onPressOut: () => void;
   onSubmit: (text: string) => void;
   placeholder: string;
+  /** On steps that already have buttons, show only a quiet "Type instead" link. */
+  compact?: boolean;
 }
 
 /** "Hold to talk", with a keyboard toggle for typing the answer instead. */
-function AnswerBar({ typing, onType, listening, disabled, onPressIn, onPressOut, onSubmit, placeholder }: AnswerBarProps) {
+function AnswerBar({ typing, onType, listening, disabled, onPressIn, onPressOut, onSubmit, placeholder, compact }: AnswerBarProps) {
   const t = useTheme();
   const primary = useSurface('primary');
   const field = useSurface('field');
-  const glass = useSurface('glass');
   const [text, setText] = useState('');
   const canTalk = speechRecognitionAvailable();
 
@@ -341,28 +518,53 @@ function AnswerBar({ typing, onType, listening, disabled, onPressIn, onPressOut,
 
   if (typing) {
     return (
-      <View style={{ flexDirection: 'row', gap: 10 }}>
-        <TextInput
-          value={text}
-          onChangeText={setText}
-          placeholder={placeholder}
-          placeholderTextColor={t.faint}
-          accessibilityLabel="Your answer"
-          autoFocus
-          returnKeyType="send"
-          onSubmitEditing={submit}
-          selectionColor={accent}
-          style={[surfaceStyle(field), { flex: 1, height: 56, borderRadius: 16, paddingHorizontal: 16, fontSize: 17, fontFamily: fonts.body, color: t.text }, noWebOutline]}
-        />
-        <Button label="Send" disabled={!text.trim() || disabled} style={{ width: 86, height: 56, borderRadius: 16 }} onPress={submit} />
+      <View style={{ gap: 8 }}>
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+          <TextInput
+            value={text}
+            onChangeText={setText}
+            placeholder={placeholder}
+            placeholderTextColor={t.faint}
+            accessibilityLabel="Your answer"
+            autoFocus
+            returnKeyType="send"
+            onSubmitEditing={submit}
+            selectionColor={accent}
+            style={[
+              surfaceStyle(field),
+              {
+                flex: 1,
+                height: 56,
+                borderRadius: 16,
+                paddingHorizontal: 16,
+                fontSize: 17,
+                fontFamily: fonts.body,
+                color: t.text,
+              },
+              noWebOutline,
+            ]}
+          />
+          <IconButton kind="accent" size={56} radius={16} label="Send" disabled={!text.trim() || disabled} onPress={submit}>
+            <SendIcon color="#2A2A2B" />
+          </IconButton>
+        </View>
         {canTalk ? (
-          <Pressable accessibilityRole="button" accessibilityLabel="Talk instead" onPress={onType} style={[surfaceStyle(glass), { width: 56, height: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center' }]}>
-            <MicIcon color={t.text} />
+          <Pressable accessibilityRole="button" onPress={onType} hitSlop={8} style={{ alignSelf: 'center', padding: 4 }}>
+            <Text
+              style={{
+                fontFamily: fonts.bodySemibold,
+                fontSize: 14,
+                color: t.faint,
+              }}>
+              Talk instead
+            </Text>
           </Pressable>
         ) : null}
       </View>
     );
   }
+
+  if (compact && !canTalk) return null;
 
   return (
     <View style={{ gap: 8 }}>
@@ -375,16 +577,36 @@ function AnswerBar({ typing, onType, listening, disabled, onPressIn, onPressOut,
         onPressOut={onPressOut}
         style={[
           surfaceStyle(primary),
-          { height: 56, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, opacity: disabled ? 0.6 : 1 },
+          {
+            height: 56,
+            borderRadius: 16,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 10,
+            opacity: disabled ? 0.6 : 1,
+          },
           listening ? { backgroundColor: accent, borderColor: 'rgba(255,255,255,0.35)' } : null,
         ]}>
         <MicIcon color={listening ? '#2A2A2B' : primary.color} />
-        <Text style={{ fontFamily: fonts.bodySemibold, fontSize: 17, color: listening ? '#2A2A2B' : primary.color }}>
+        <Text
+          style={{
+            fontFamily: fonts.bodySemibold,
+            fontSize: 17,
+            color: listening ? '#2A2A2B' : primary.color,
+          }}>
           {listening ? 'Listening… release to send' : 'Hold to talk'}
         </Text>
       </Pressable>
       <Pressable accessibilityRole="button" onPress={onType} hitSlop={8} style={{ alignSelf: 'center', padding: 4 }}>
-        <Text style={{ fontFamily: fonts.bodySemibold, fontSize: 14, color: t.faint }}>Type instead</Text>
+        <Text
+          style={{
+            fontFamily: fonts.bodySemibold,
+            fontSize: 14,
+            color: t.faint,
+          }}>
+          Type instead
+        </Text>
       </Pressable>
     </View>
   );

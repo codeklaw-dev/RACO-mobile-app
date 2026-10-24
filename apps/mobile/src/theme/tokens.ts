@@ -29,6 +29,8 @@ export interface Palette {
   primary: Surface;
   field: Surface;
   tile: string;
+  /** The user's own chat messages. */
+  bubble: string;
   switchTrackOff: string;
   stageGradient: string;
   shimmer: string;
@@ -45,7 +47,7 @@ export interface Surface {
 export const accentSurface: Surface = {
   backgroundColor: 'rgba(252,121,101,0.92)',
   borderColor: 'rgba(255,255,255,0.35)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.45), 0 8px 20px rgba(252,121,101,0.30)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.45), 0 4px 12px rgba(252,121,101,0.25)',
   color: '#2A2A2B',
 };
 
@@ -62,13 +64,13 @@ export const light: Palette = {
   glass: {
     backgroundColor: 'rgba(255,255,255,0.62)',
     borderColor: 'rgba(255,255,255,0.95)',
-    boxShadow: 'inset 0 1px 0 #FFFFFF, 0 1px 2px rgba(42,42,43,0.06), 0 10px 28px rgba(42,42,43,0.08)',
+    boxShadow: 'inset 0 1px 0 #FFFFFF, 0 1px 2px rgba(42,42,43,0.05), 0 4px 14px rgba(42,42,43,0.05)',
     color: '#2A2A2B',
   },
   primary: {
     backgroundColor: 'rgba(42,42,43,0.88)',
     borderColor: 'rgba(255,255,255,0.14)',
-    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.18), 0 10px 26px rgba(42,42,43,0.22)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.18), 0 4px 12px rgba(42,42,43,0.16)',
     color: '#FFFFFF',
   },
   field: {
@@ -78,6 +80,7 @@ export const light: Palette = {
     color: '#2A2A2B',
   },
   tile: 'rgba(42,42,43,0.06)',
+  bubble: 'rgba(42,42,43,0.075)',
   switchTrackOff: 'rgba(42,42,43,0.14)',
   stageGradient: 'linear-gradient(180deg, #D6D6DB 0%, #C9C9CF 50%, #B4B4BC 100%)',
   shimmer: 'rgba(42,42,43,0.45)',
@@ -97,13 +100,13 @@ export const dark: Palette = {
     backgroundColor: 'rgba(255,255,255,0.075)',
     backgroundImage: 'linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.05))',
     borderColor: 'rgba(255,255,255,0.14)',
-    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.16), 0 10px 30px rgba(0,0,0,0.28)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12), 0 4px 14px rgba(0,0,0,0.22)',
     color: '#F5F5F7',
   },
   primary: {
     backgroundColor: 'rgba(245,245,247,0.92)',
     borderColor: 'rgba(255,255,255,0.7)',
-    boxShadow: 'inset 0 1px 0 #FFFFFF, 0 10px 30px rgba(0,0,0,0.3)',
+    boxShadow: 'inset 0 1px 0 #FFFFFF, 0 4px 14px rgba(0,0,0,0.25)',
     color: '#2A2A2B',
   },
   field: {
@@ -113,6 +116,7 @@ export const dark: Palette = {
     color: '#F5F5F7',
   },
   tile: 'rgba(255,255,255,0.08)',
+  bubble: 'rgba(255,255,255,0.10)',
   switchTrackOff: 'rgba(255,255,255,0.16)',
   stageGradient: 'linear-gradient(180deg, #141415 0%, #222224 50%, #3A3A3E 100%)',
   shimmer: 'rgba(245,245,247,0.5)',

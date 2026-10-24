@@ -39,7 +39,7 @@ export function VoiceStage({ status, said, footnote, top }: { status: VoiceStatu
     }
   }, [status, reduced, glow]);
 
-  const glowStyle = useAnimatedStyle(() => ({ opacity: 0.35 + glow.value * 0.65 * (status === 'listening' ? 1 : 0) }));
+  const glowStyle = useAnimatedStyle(() => ({ opacity: 0.35 + glow.value * 0.65 }));
 
   return (
     <View
@@ -62,7 +62,7 @@ export function VoiceStage({ status, said, footnote, top }: { status: VoiceStatu
         style={[
           StyleSheet.absoluteFill,
           { borderRadius: 38, boxShadow: 'inset 0 0 70px 6px rgba(252,121,101,0.75)' },
-          status === 'listening' ? glowStyle : { opacity: 0.25 },
+          status === 'listening' ? glowStyle : { opacity: 0 },
         ]}
       />
       <View style={{ height: 34, alignItems: 'center', justifyContent: 'center' }}>

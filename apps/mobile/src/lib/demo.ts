@@ -4,6 +4,7 @@
  * in-memory with sample data. Production builds never set the flag.
  */
 import type { ChatStreamEvent } from '@raco/shared';
+import { noteSampleError, previewSample, streamPreviewReply } from './preview-ai';
 
 export const DEMO = process.env.EXPO_PUBLIC_DEMO === '1';
 
@@ -138,6 +139,21 @@ const FALLBACK = `This is a preview, so my replies are samples rather than real 
 
 Try one of the suggestions on the home screen to see how replies look.`;
 
+/** Standing instructions for preview replies; mirrors the API's system prompt. */
+function previewInstructions(): string {
+  const p = state.profile;
+  return [
+    `You are ${p.agent_name}, a private AI assistant in the RACO mobile app. You help people write, research, study, plan and think things through.`,
+    'The user is on a phone. Format for a small screen: short paragraphs, plain Markdown, no wide tables unless asked.',
+    'Give clear answers with just enough context to be useful.',
+    p.display_name ? `The user's first name is ${p.display_name}.` : '',
+    p.interests.length ? `They mainly want help with: ${p.interests.join(', ')}.` : '',
+    'Reply to the conversation that follows.',
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
+
 /** Stands in for the RACO API's streaming chat endpoint. */
 export async function* demoStreamChat(
   req: { conversationId?: string; message: string },
@@ -152,14 +168,38 @@ export async function* demoStreamChat(
   chat.messages.push({ id: `m-${Date.now()}`, role: 'user', content: req.message, created_at: now() });
   yield { type: 'conversation', conversationId: chat.id, title: chat.title };
 
-  await new Promise((r) => setTimeout(r, 700));
-  const text = REPLIES.find((r) => r.match.test(req.message))?.text ?? FALLBACK;
   let sent = '';
-  for (const word of text.match(/\S+\s*/g) ?? []) {
-    if (signal?.aborted) break;
-    sent += word;
-    yield { type: 'delta', text: word };
-    await new Promise((r) => setTimeout(r, 28));
+  const sample = await previewSample();
+  if (sample) {
+    // Real replies from Claude, through the preview viewer.
+    const turns = [
+      { role: 'user' as const, content: previewInstructions() },
+      ...chat.messages.map((m) => ({ role: m.role, content: m.content })),
+    ];
+    try {
+      for await (const delta of streamPreviewReply(sample, turns, signal)) {
+        sent += delta;
+        yield { type: 'delta', text: delta };
+      }
+    } catch (err) {
+      noteSampleError(err);
+      if (!sent && (err as { code?: string })?.code !== 'cancelled') {
+        yield* scripted();
+      }
+    }
+  } else {
+    yield* scripted();
+  }
+
+  async function* scripted(): AsyncGenerator<ChatStreamEvent> {
+    await new Promise((r) => setTimeout(r, 700));
+    const text = REPLIES.find((r) => r.match.test(req.message))?.text ?? FALLBACK;
+    for (const word of text.match(/\S+\s*/g) ?? []) {
+      if (signal?.aborted) break;
+      sent += word;
+      yield { type: 'delta', text: word };
+      await new Promise((r) => setTimeout(r, 28));
+    }
   }
   const id = `m-${Date.now()}`;
   chat.messages.push({ id, role: 'assistant', content: sent, created_at: now() });

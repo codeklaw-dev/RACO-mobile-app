@@ -6,7 +6,6 @@ import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withTiming } fr
 import type { UiMessage } from '@/state/use-chat';
 import { fonts, useTheme } from '@/theme';
 import { Markdown } from './markdown';
-import { surfaceStyle, useSurface } from './surface';
 
 interface Props {
   messages: UiMessage[];
@@ -39,13 +38,12 @@ export function MessageList({ messages, agentName, header }: Props) {
 
 function UserBubble({ message }: { message: UiMessage }) {
   const t = useTheme();
-  const primary = useSurface('primary');
   return (
     <Pressable
       onLongPress={() => copy(message.content)}
       accessibilityHint="Long press to copy"
-      style={[surfaceStyle(primary), { alignSelf: 'flex-end', maxWidth: '85%', borderRadius: 18, borderBottomRightRadius: 6, paddingVertical: 10, paddingHorizontal: 14 }]}>
-      <Text selectable style={{ fontFamily: fonts.body, fontSize: 17, lineHeight: 24, color: t.primary.color }}>
+      style={{ alignSelf: 'flex-end', maxWidth: '85%', borderRadius: 20, borderBottomRightRadius: 6, paddingVertical: 10, paddingHorizontal: 14, backgroundColor: t.bubble }}>
+      <Text selectable style={{ fontFamily: fonts.body, fontSize: 17, lineHeight: 24, color: t.text }}>
         {message.content}
       </Text>
     </Pressable>
