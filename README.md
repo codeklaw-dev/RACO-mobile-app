@@ -51,10 +51,11 @@ npm run mobile
 
 `STORE=memory` keeps everything in memory and accepts the bearer token
 `dev:<name>` as a login, so you can exercise the whole chat path with no
-Supabase project. It is for local use only.
+Supabase project. It is for local use only. With no model configured
+(`LLM_PROVIDER=demo`, the default for now), chat streams sample replies and
+voice onboarding uses the built-in rule-based reader.
 
 ```bash
-npm run fake-model -w apps/api   # stand-in model on :9100 (or point LLM_BASE_URL at a real one)
 npm run dev:local -w apps/api    # API on :8787
 curl -N localhost:8787/v1/chat -H 'authorization: Bearer dev:sam' \
   -H 'content-type: application/json' -d '{"message":"Plan my week"}'

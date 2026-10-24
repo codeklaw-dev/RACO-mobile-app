@@ -2,10 +2,11 @@ import { randomUUID } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import type { ChatStreamEvent } from '@raco/shared';
 import { createApp, HISTORY_LIMIT } from '../src/app';
+import { DemoLlm } from '../src/demo';
 import { devTokenVerifier } from '../src/memory-store';
 import type { CompletionEvent, CompletionRequest, Llm } from '../src/llm';
 import { buildSystemPrompt, titleFromMessage } from '../src/prompt';
-import { interpretLocally } from '@raco/shared';
+import { demoReply, interpretLocally } from '@raco/shared';
 import type { Conversation, Store, StoredMessage, UsageRecord, UserContext } from '../src/store';
 
 const USER_ID = '11111111-1111-4111-8111-111111111111';
@@ -282,5 +283,15 @@ describe('devTokenVerifier', () => {
     expect(await devTokenVerifier('dev:sam')).toEqual({ id: 'sam' });
     expect(await devTokenVerifier('eyJhbGciOi.x.y')).toBeNull();
     expect(await devTokenVerifier('dev:../etc')).toBeNull();
+  });
+});
+
+describe('DemoLlm', () => {
+  it('streams the sample reply for the last user message', async () => {
+    const events = [];
+    for await (const e of new DemoLlm(0).stream({ system: '', messages: [{ role: 'user', content: 'Plan my week' }] })) events.push(e);
+    const text = events.flatMap((e) => (e.type === 'text' ? [e.text] : [])).join('');
+    expect(text).toBe(demoReply('Plan my week'));
+    expect(events.at(-1)).toMatchObject({ type: 'done', refused: false, usage: { model: 'demo' } });
   });
 });

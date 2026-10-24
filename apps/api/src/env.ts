@@ -7,8 +7,9 @@ const envSchema = z.object({
   STORE: z.enum(['supabase', 'memory']).default('supabase'),
   SUPABASE_URL: z.url().optional(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
-  // "anthropic" (Claude) or "openai-compatible" (your own model server).
-  LLM_PROVIDER: z.enum(['anthropic', 'openai-compatible']).default('anthropic'),
+  // "demo" (sample replies, no model called), "anthropic" (Claude) or
+  // "openai-compatible" (your own model server).
+  LLM_PROVIDER: z.enum(['demo', 'anthropic', 'openai-compatible']).default('demo'),
   ANTHROPIC_API_KEY: z.string().optional(),
   LLM_BASE_URL: z.url().optional(),
   LLM_API_KEY: z.string().optional(),
@@ -30,7 +31,7 @@ const checkedEnvSchema = envSchema.superRefine((env, ctx) => {
     need('SUPABASE_SERVICE_ROLE_KEY');
   }
   if (env.LLM_PROVIDER === 'anthropic') need('ANTHROPIC_API_KEY');
-  else {
+  else if (env.LLM_PROVIDER === 'openai-compatible') {
     need('LLM_BASE_URL');
     need('LLM_API_KEY');
     need('CHAT_MODEL');

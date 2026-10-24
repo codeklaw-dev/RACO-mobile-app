@@ -83,9 +83,13 @@ describe('OpenAICompatibleVoiceInterpreter', () => {
 describe('loadEnv', () => {
   const base = { SUPABASE_URL: 'https://x.supabase.co', SUPABASE_SERVICE_ROLE_KEY: 's' };
 
-  it('requires the Anthropic key for the default provider', () => {
-    expect(() => loadEnv(base)).toThrow(/ANTHROPIC_API_KEY/);
-    expect(loadEnv({ ...base, ANTHROPIC_API_KEY: 'a' }).LLM_PROVIDER).toBe('anthropic');
+  it('defaults to the demo provider, which needs no keys', () => {
+    expect(loadEnv(base).LLM_PROVIDER).toBe('demo');
+  });
+
+  it('requires the Anthropic key for Claude', () => {
+    expect(() => loadEnv({ ...base, LLM_PROVIDER: 'anthropic' })).toThrow(/ANTHROPIC_API_KEY/);
+    expect(loadEnv({ ...base, LLM_PROVIDER: 'anthropic', ANTHROPIC_API_KEY: 'a' }).LLM_PROVIDER).toBe('anthropic');
   });
 
   it('requires base URL, key and model for an OpenAI-compatible server', () => {

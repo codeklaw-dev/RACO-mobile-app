@@ -3,7 +3,7 @@
  * shared as a clickable preview. Supabase and the RACO API are answered
  * in-memory with sample data. Production builds never set the flag.
  */
-import { VOICE_GUIDANCE, type ChatMode, type ChatStreamEvent } from '@raco/shared';
+import { demoReply, VOICE_GUIDANCE, type ChatMode, type ChatStreamEvent } from '@raco/shared';
 import { noteSampleError, previewSample, streamPreviewReply } from './preview-ai';
 
 export const DEMO = process.env.EXPO_PUBLIC_DEMO === '1';
@@ -119,52 +119,6 @@ export async function demoFetch(input: RequestInfo | URL, init?: RequestInit): P
   }
 }
 
-const REPLIES: { match: RegExp; text: string }[] = [
-  {
-    match: /flashcard|exam|revise|study/i,
-    text: `Happy to help you get ready. Here's a plan that fits the next three days:
-
-**Day 1: map the material**
-- List every topic on the syllabus
-- Mark each one *confident*, *shaky* or *new*
-
-**Day 2: work on the gaps**
-1. Spend 25-minute blocks on each shaky topic
-2. Test yourself with flashcards after each block
-
-**Exam morning:** a quick review, not new material.
-
-Paste in your lecture notes and I'll turn them into flashcards.`,
-  },
-  {
-    match: /email|follow-up/i,
-    text: `Here's a draft you can send as it is or adjust:
-
-> Hi Priya,
->
-> Thanks again for your time on Tuesday. I wanted to follow up on the launch timeline. Could we confirm the **14 November** date by Friday, so the team can lock the release plan?
->
-> Best,
-> Sam
-
-Want it shorter, or more formal?`,
-  },
-  {
-    match: /plan|week|schedule|deadline/i,
-    text: `Let's build your week. Tell me your three deadlines and roughly how long each needs. In the meantime, here's a shape that works for most people:
-
-- **Mornings:** deep work on the hardest deadline
-- **After lunch:** meetings and messages
-- **Late afternoon:** the smaller tasks
-
-I'll turn it into a day-by-day schedule once I know what's due.`,
-  },
-];
-
-const FALLBACK = `This is a preview, so my replies are samples rather than real AI answers. In the full app I'll answer anything you ask, read files you share, and talk with you by voice.
-
-Try one of the suggestions on the home screen to see how replies look.`;
-
 /** Standing instructions for preview replies; mirrors the API's system prompt. */
 function previewInstructions(mode: ChatMode = 'text'): string {
   const p = state.profile;
@@ -220,7 +174,7 @@ export async function* demoStreamChat(
 
   async function* scripted(): AsyncGenerator<ChatStreamEvent> {
     await new Promise((r) => setTimeout(r, 700));
-    const text = REPLIES.find((r) => r.match.test(req.message))?.text ?? FALLBACK;
+    const text = demoReply(req.message);
     for (const word of text.match(/\S+\s*/g) ?? []) {
       if (signal?.aborted) break;
       sent += word;
