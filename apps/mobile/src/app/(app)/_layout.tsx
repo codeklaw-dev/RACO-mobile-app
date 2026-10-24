@@ -11,6 +11,7 @@ export default function AppLayout() {
       <Stack.Screen name="chat/[id]" />
       <Stack.Screen name="chats" options={{ presentation: 'modal' }} />
       <Stack.Screen name="settings" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="voice-mode" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
     </Stack>
   );
 }

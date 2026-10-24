@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { greeting, humanList } from './greeting';
-import { parseInline, parseMarkdown } from './markdown';
+import { parseInline, parseMarkdown, toPlainText } from './markdown';
 import { SseParser } from './sse';
 
 describe('SseParser', () => {
@@ -69,5 +69,11 @@ describe('greeting', () => {
   it('joins lists naturally', () => {
     expect(humanList(['writing'])).toBe('writing');
     expect(humanList(['writing', 'research', 'study'])).toBe('writing, research and study');
+  });
+});
+
+describe('toPlainText', () => {
+  it('strips formatting so a reply can be spoken', () => {
+    expect(toPlainText('# Plan\n\n**Day 1:** read\n\n- one\n- *two*\n\n```js\nx()\n```')).toBe('Plan. Day 1: read. one. two.');
   });
 });

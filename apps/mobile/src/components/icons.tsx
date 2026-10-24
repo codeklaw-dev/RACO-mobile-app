@@ -15,6 +15,14 @@ export function BackIcon({ color }: IconProps) {
   );
 }
 
+export function CloseIcon({ color }: IconProps) {
+  return (
+    <Svg width={16} height={16} viewBox="0 0 16 16" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round">
+      <Path d="M3 3l10 10M13 3L3 13" />
+    </Svg>
+  );
+}
+
 export function MenuIcon({ color }: IconProps) {
   return (
     <Svg width={20} height={14} viewBox="0 0 20 14" fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round">

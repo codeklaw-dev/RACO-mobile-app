@@ -9,6 +9,8 @@ import { surfaceStyle, useSurface } from './surface';
 interface Props {
   onSend: (text: string) => void;
   onStop?: () => void;
+  /** Opens voice mode (the voice canvas). */
+  onVoice?: () => void;
   streaming?: boolean;
   autoFocus?: boolean;
   initialText?: string;
@@ -20,7 +22,7 @@ const comingSoon = (what: string) => Alert.alert(`${what} is coming soon`, 'This
  * The "Ask anything" bar. The accent button is voice mode while empty, send
  * once there's text, and stop while a reply is streaming.
  */
-export function Composer({ onSend, onStop, streaming, autoFocus, initialText = '' }: Props) {
+export function Composer({ onSend, onStop, onVoice, streaming, autoFocus, initialText = '' }: Props) {
   const t = useTheme();
   const glass = useSurface('glass');
   const [text, setText] = useState(initialText);
@@ -84,7 +86,7 @@ export function Composer({ onSend, onStop, streaming, autoFocus, initialText = '
           <SendIcon color="#2A2A2B" />
         </IconButton>
       ) : (
-        <IconButton kind="accent" size={40} label="Voice mode" onPress={() => comingSoon('Voice mode')}>
+        <IconButton kind="accent" size={40} label="Voice mode" onPress={onVoice ?? (() => comingSoon('Voice mode'))}>
           <VoiceIcon color="#2A2A2B" />
         </IconButton>
       )}

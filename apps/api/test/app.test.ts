@@ -261,6 +261,12 @@ describe('prompt helpers', () => {
     expect(buildSystemPrompt(baseContext())).toBe(buildSystemPrompt(baseContext()));
   });
 
+  it('asks for short spoken replies in voice mode', () => {
+    const prompt = buildSystemPrompt(baseContext(), 'voice');
+    expect(prompt).toContain('read aloud');
+    expect(prompt).not.toContain('Markdown, no wide tables');
+  });
+
   it('titles long messages at a word boundary', () => {
     expect(titleFromMessage('Short one')).toBe('Short one');
     const title = titleFromMessage('Help me revise for my exam on Friday about cell biology and genetics please');

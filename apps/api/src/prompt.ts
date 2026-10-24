@@ -1,4 +1,4 @@
-import type { ResponseStyle } from '@raco/shared';
+import { VOICE_GUIDANCE, type ChatMode, type ResponseStyle } from '@raco/shared';
 import type { UserContext } from './store';
 
 const STYLE_GUIDANCE: Record<ResponseStyle, string> = {
@@ -15,11 +15,11 @@ const STYLE_GUIDANCE: Record<ResponseStyle, string> = {
  * prompt-cache prefix stays stable across turns: nothing time-dependent goes
  * in here.
  */
-export function buildSystemPrompt(ctx: UserContext): string {
+export function buildSystemPrompt(ctx: UserContext, mode: ChatMode = 'text'): string {
   const lines = [
     `You are ${ctx.agentName}, a private AI assistant in the RACO mobile app. You help people write, research, study, plan and think things through.`,
     '',
-    'The user is on a phone. Format for a small screen: short paragraphs, plain Markdown, no wide tables unless asked.',
+    mode === 'voice' ? VOICE_GUIDANCE : 'The user is on a phone. Format for a small screen: short paragraphs, plain Markdown, no wide tables unless asked.',
     STYLE_GUIDANCE[ctx.responseStyle],
     'If you are unsure about a fact that matters, say so plainly rather than guessing.',
   ];

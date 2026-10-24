@@ -44,12 +44,24 @@ export default function Chat() {
         {chat.error ? (
           <Text
             accessibilityLiveRegion="polite"
-            style={{ marginHorizontal: 20, marginBottom: 8, fontFamily: fonts.bodyMedium, fontSize: 14, color: t.scheme === 'light' ? '#B42318' : '#FF8A80' }}>
+            style={{
+              marginHorizontal: 20,
+              marginBottom: 8,
+              fontFamily: fonts.bodyMedium,
+              fontSize: 14,
+              color: t.scheme === 'light' ? '#B42318' : '#FF8A80',
+            }}>
             {chat.error}
           </Text>
         ) : null}
         <View style={{ paddingHorizontal: 16 }}>
-          <Composer onSend={chat.send} onStop={chat.stop} streaming={chat.streaming} />
+          <Composer
+            onSend={chat.send}
+            onStop={chat.stop}
+            streaming={chat.streaming}
+            // Replace rather than push: closing voice mode reopens this chat with the new turns.
+            onVoice={() => router.replace({ pathname: '/voice-mode', params: chat.conversationId ? { id: chat.conversationId } : {} })}
+          />
         </View>
       </View>
     </KeyboardAvoidingView>

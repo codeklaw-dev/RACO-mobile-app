@@ -48,7 +48,7 @@ export default function Home() {
           }
         />
         {firstRun ? <FirstRunIntro agent={agent} /> : firstRun === false ? <Greeting /> : <View style={{ flex: 1 }} />}
-        <Composer onSend={openChat} />
+        <Composer onSend={openChat} onVoice={() => router.push('/voice-mode')} />
       </View>
     </KeyboardAvoidingView>
   );

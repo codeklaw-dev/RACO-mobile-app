@@ -146,3 +146,30 @@ export function parseInline(src: string): Inline[] {
   flush();
   return out;
 }
+
+/** Plain text for reading a reply aloud or showing it on the voice stage. */
+export function toPlainText(src: string): string {
+  const inline = (nodes: Inline[]): string =>
+    nodes.map((n) => (n.type === 'text' || n.type === 'code' ? n.text : inline(n.children))).join('');
+  return parseMarkdown(src)
+    .map((b) => {
+      switch (b.type) {
+        case 'list':
+          return b.items.map((item) => endSentence(inline(item))).join(' ');
+        case 'code':
+          return '';
+        default:
+          return endSentence(inline(b.children));
+      }
+    })
+    .filter(Boolean)
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** Ends a block with a full stop so separate blocks are read as separate sentences. */
+function endSentence(text: string): string {
+  const t = text.trim();
+  return !t || /[.!?:…]$/.test(t) ? t : `${t}.`;
+}

@@ -1,5 +1,5 @@
 import { useEffect, type ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
   cancelAnimation,
@@ -71,24 +71,32 @@ export function VoiceStage({ status, said, footnote, top }: { status: VoiceStatu
           <Text style={{ fontFamily: fonts.bodyMedium, fontSize: 14, color: t.faint }}>{STATUS_LABEL.thinking}</Text>
         ) : null}
       </View>
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+      {/* Short lines read large; longer replies step down in size and scroll. */}
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 8 }}
+        showsVerticalScrollIndicator={false}>
         <Text
           accessibilityLiveRegion="polite"
           style={{
             fontFamily: fonts.display,
-            fontSize: 30,
-            lineHeight: 38,
-            letterSpacing: -0.6,
             color: t.text,
             textAlign: 'center',
-            maxWidth: 310,
+            maxWidth: 320,
+            ...stageType(said.length),
           }}>
           {said}
         </Text>
-      </View>
+      </ScrollView>
       {footnote ? <View style={{ alignItems: 'center', marginBottom: 4 }}>{footnote}</View> : null}
     </View>
   );
+}
+
+function stageType(length: number) {
+  if (length <= 60) return { fontSize: 30, lineHeight: 38, letterSpacing: -0.6 };
+  if (length <= 160) return { fontSize: 24, lineHeight: 31, letterSpacing: -0.4 };
+  return { fontSize: 20, lineHeight: 27, letterSpacing: -0.2 };
 }
 
 const BAR_HEIGHTS = [6, 12, 18, 9, 22, 14, 8, 18, 11, 6, 13];

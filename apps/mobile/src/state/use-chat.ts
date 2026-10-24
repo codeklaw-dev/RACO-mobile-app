@@ -1,4 +1,4 @@
-import type { ChatMessage } from '@raco/shared';
+import type { ChatMessage, ChatMode } from '@raco/shared';
 import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChatError, streamChat } from '@/lib/api';
@@ -26,7 +26,7 @@ const nextLocalId = () => `local-${++localId}`;
  * One conversation: loads its history, sends messages and streams replies.
  * `onConversation` fires when the server creates a new conversation.
  */
-export function useChat(initialId: string | null, onConversation?: (id: string) => void): ChatState {
+export function useChat(initialId: string | null, onConversation?: (id: string) => void, mode: ChatMode = 'text'): ChatState {
   const [conversationId, setConversationId] = useState(initialId);
   const [messages, setMessages] = useState<UiMessage[]>([]);
   const [loading, setLoading] = useState(!!initialId);
@@ -80,7 +80,7 @@ export function useChat(initialId: string | null, onConversation?: (id: string) 
 
       let firstToken = true;
       try {
-        for await (const event of streamChat({ conversationId: conversationId ?? undefined, message }, abort.signal)) {
+        for await (const event of streamChat({ conversationId: conversationId ?? undefined, message, mode }, abort.signal)) {
           switch (event.type) {
             case 'conversation':
               if (!conversationId) {
@@ -114,7 +114,7 @@ export function useChat(initialId: string | null, onConversation?: (id: string) 
         );
       }
     },
-    [conversationId, onConversation],
+    [conversationId, onConversation, mode],
   );
 
   const stop = useCallback(() => abortRef.current?.abort(), []);

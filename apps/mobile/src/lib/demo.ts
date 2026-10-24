@@ -3,7 +3,7 @@
  * shared as a clickable preview. Supabase and the RACO API are answered
  * in-memory with sample data. Production builds never set the flag.
  */
-import type { ChatStreamEvent } from '@raco/shared';
+import { VOICE_GUIDANCE, type ChatMode, type ChatStreamEvent } from '@raco/shared';
 import { noteSampleError, previewSample, streamPreviewReply } from './preview-ai';
 
 export const DEMO = process.env.EXPO_PUBLIC_DEMO === '1';
@@ -140,11 +140,11 @@ const FALLBACK = `This is a preview, so my replies are samples rather than real 
 Try one of the suggestions on the home screen to see how replies look.`;
 
 /** Standing instructions for preview replies; mirrors the API's system prompt. */
-function previewInstructions(): string {
+function previewInstructions(mode: ChatMode = 'text'): string {
   const p = state.profile;
   return [
     `You are ${p.agent_name}, a private AI assistant in the RACO mobile app. You help people write, research, study, plan and think things through.`,
-    'The user is on a phone. Format for a small screen: short paragraphs, plain Markdown, no wide tables unless asked.',
+    mode === 'voice' ? VOICE_GUIDANCE : 'The user is on a phone. Format for a small screen: short paragraphs, plain Markdown, no wide tables unless asked.',
     'Give clear answers with just enough context to be useful.',
     p.display_name ? `The user's first name is ${p.display_name}.` : '',
     p.interests.length ? `They mainly want help with: ${p.interests.join(', ')}.` : '',
@@ -156,7 +156,7 @@ function previewInstructions(): string {
 
 /** Stands in for the RACO API's streaming chat endpoint. */
 export async function* demoStreamChat(
-  req: { conversationId?: string; message: string },
+  req: { conversationId?: string; message: string; mode?: ChatMode },
   signal?: AbortSignal,
 ): AsyncGenerator<ChatStreamEvent> {
   const now = () => new Date().toISOString();
@@ -173,7 +173,7 @@ export async function* demoStreamChat(
   if (sample) {
     // Real replies from Claude, through the preview viewer.
     const turns = [
-      { role: 'user' as const, content: previewInstructions() },
+      { role: 'user' as const, content: previewInstructions(req.mode) },
       ...chat.messages.map((m) => ({ role: m.role, content: m.content })),
     ];
     try {

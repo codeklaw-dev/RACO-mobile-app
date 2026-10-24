@@ -54,7 +54,7 @@ export function createApp(deps: AppDeps) {
     if (!parsed.success) {
       return c.json(errorBody('invalid_request', 'That message could not be sent.'), 400);
     }
-    const { conversationId, message } = parsed.data;
+    const { conversationId, message, mode } = parsed.data;
 
     const ctx = await deps.store.getUserContext(user.id);
     if (!ctx) return c.json(errorBody('unauthorized', 'Your account is not set up yet.'), 403);
@@ -88,7 +88,7 @@ export function createApp(deps: AppDeps) {
       let reply = '';
       try {
         for await (const event of deps.llm.stream({
-          system: buildSystemPrompt(ctx),
+          system: buildSystemPrompt(ctx, mode),
           messages: history,
           signal: abort.signal,
         })) {
