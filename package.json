@@ -10,7 +10,8 @@
     "api": "npm run dev -w @raco/api",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "lint": "npm run lint --workspaces --if-present"
+    "lint": "npm run lint --workspaces --if-present",
+    "apple-check": "node scripts/apple-check.mjs"
   },
   "engines": {
     "node": ">=22"

@@ -129,7 +129,12 @@ export function useHoldToTalk(onFinal: (transcript: string) => void) {
 // Understanding: the API reads each answer with a small model.
 // ---------------------------------------------------------------------------
 
-export async function voiceTurn(req: VoiceTurnRequest): Promise<VoiceTurnResult> {
+/**
+ * Reads one onboarding answer. Without AI consent (`useAi` false) it stays on
+ * the device and uses the rule-based reader (Guideline 5.1.2(i)).
+ */
+export async function voiceTurn(req: VoiceTurnRequest, useAi: boolean): Promise<VoiceTurnResult> {
+  if (!useAi) return interpretLocally(req);
   if (DEMO) return previewVoiceTurn(req);
   try {
     const { data } = await supabase.auth.getSession();

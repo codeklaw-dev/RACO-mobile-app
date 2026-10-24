@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 const envSchema = z.object({
+  NODE_ENV: z.string().default('development'),
   PORT: z.coerce.number().int().positive().default(8787),
   // "supabase" for real data; "memory" runs locally with no database and a
   // development login (bearer token "dev:<name>"). Never use memory in production.
@@ -26,6 +27,12 @@ const checkedEnvSchema = envSchema.superRefine((env, ctx) => {
   const need = (key: keyof typeof env) => {
     if (!env[key]) ctx.addIssue({ code: 'custom', path: [key], message: `${key} is required with this configuration` });
   };
+  // App Review 2.1: a reviewed build must talk to a real backend and model,
+  // so production refuses the local-only modes.
+  if (env.NODE_ENV === 'production') {
+    if (env.STORE === 'memory') ctx.addIssue({ code: 'custom', path: ['STORE'], message: 'STORE=memory is not allowed in production' });
+    if (env.LLM_PROVIDER === 'demo') ctx.addIssue({ code: 'custom', path: ['LLM_PROVIDER'], message: 'LLM_PROVIDER=demo is not allowed in production' });
+  }
   if (env.STORE === 'supabase') {
     need('SUPABASE_URL');
     need('SUPABASE_SERVICE_ROLE_KEY');

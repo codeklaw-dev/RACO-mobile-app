@@ -43,6 +43,7 @@ const state = {
     response_style: 'balanced',
     notification_prefs: {},
     onboarded_at: null as string | null,
+    ai_consent_at: null as string | null,
   },
   chats: [] as DemoChat[],
 };

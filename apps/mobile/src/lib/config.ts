@@ -20,4 +20,7 @@ export const config = {
   apiUrl: required('EXPO_PUBLIC_API_URL', process.env.EXPO_PUBLIC_API_URL).replace(/\/$/, ''),
   termsUrl: process.env.EXPO_PUBLIC_TERMS_URL ?? 'https://racoai.io/terms',
   privacyUrl: process.env.EXPO_PUBLIC_PRIVACY_URL ?? 'https://racoai.io/privacy',
+  supportEmail: process.env.EXPO_PUBLIC_SUPPORT_EMAIL ?? 'support@racoai.io',
+  /** Who receives chat data, named in the consent prompt (Guideline 5.1.2(i)). */
+  aiProvider: process.env.EXPO_PUBLIC_AI_PROVIDER ?? 'Anthropic',
 };

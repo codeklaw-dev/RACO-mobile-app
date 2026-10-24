@@ -22,6 +22,7 @@ import { surfaceStyle, useSurface } from '@/components/surface';
 import { VoiceStage, type VoiceStatus } from '@/components/voice-stage';
 import { config } from '@/lib/config';
 import { formatTime, humanList } from '@/lib/greeting';
+import { useAiConsent } from '@/lib/ai-consent';
 import { requestMicrophone, speak, speechRecognitionAvailable, stopSpeaking, useHoldToTalk, voiceTurn } from '@/lib/voice';
 import { useAppLock } from '@/state/app-lock';
 import { useOnboarding, type OnboardingDraft } from '@/state/onboarding';
@@ -63,6 +64,7 @@ export default function VoiceOnboarding() {
   const insets = useSafeAreaInsets();
   const { draft, set } = useOnboarding();
   const { updateProfile } = useSession();
+  const aiConsent = useAiConsent();
   const lock = useAppLock();
   const [phase, setPhase] = useState<Phase>('intro');
   const [status, setStatus] = useState<VoiceStatus>('idle');
@@ -152,7 +154,7 @@ export default function VoiceOnboarding() {
       setHeard(transcript);
       setStatus('thinking');
       const d = draftRef.current;
-      const res = await voiceTurn({ step, transcript, agentName: d.agentName, displayName: d.displayName || undefined });
+      const res = await voiceTurn({ step, transcript, agentName: d.agentName, displayName: d.displayName || undefined }, aiConsent.consented);
 
       if (res.wantsTour) {
         await say(
@@ -173,7 +175,7 @@ export default function VoiceOnboarding() {
     },
     // chooseCalls only reads refs and setters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [phase, say, set, advance],
+    [phase, say, set, advance, aiConsent.consented],
   );
 
   const mic = useHoldToTalk((transcript) => void answer(transcript));
@@ -181,6 +183,9 @@ export default function VoiceOnboarding() {
   const typingMode = typing || mic.unavailable;
 
   async function begin(byVoice: boolean) {
+    // Ask before any answer leaves the phone. If they decline, onboarding
+    // still works with the on-device reader.
+    await aiConsent.ensure().catch(() => false);
     if (byVoice) {
       if (!(await requestMicrophone())) setTyping(true);
     } else {
@@ -267,8 +272,8 @@ export default function VoiceOnboarding() {
         {phase === 'ready' ? (
           <View style={{ gap: 14 }}>
             <Text style={{ marginHorizontal: 4, fontFamily: fonts.body, fontSize: 14, lineHeight: 20, color: t.sub }}>
-              Your chats are private to you, and you can delete them any time. {draft.agentName} can make mistakes, so check anything
-              important.{' '}
+              Your chats are private to you, and you can delete them any time.{' '}
+              {aiConsent.consented ? `Replies come from ${config.aiProvider}, an AI service, and can be wrong, so check anything important.` : `${draft.agentName} will ask before using its AI service.`}{' '}
               <Text
                 accessibilityRole="link"
                 onPress={() => WebBrowser.openBrowserAsync(config.privacyUrl)}

@@ -1,14 +1,17 @@
 import { RESPONSE_STYLES, type ResponseStyle } from '@raco/shared';
 import { router } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/button';
 import { TextField, Toggle } from '@/components/fields';
 import { Surface, surfaceStyle, useSurface } from '@/components/surface';
 import { Caption, Title } from '@/components/text';
+import { aiDisclosure, useAiConsent } from '@/lib/ai-consent';
 import { deleteAccount } from '@/lib/api';
 import { signOut } from '@/lib/auth';
+import { config } from '@/lib/config';
 import { useAppLock } from '@/state/app-lock';
 import { useSession } from '@/state/session';
 import { fonts, useTheme } from '@/theme';
@@ -19,6 +22,7 @@ export default function Settings() {
   const primary = useSurface('primary');
   const { profile, session, updateProfile } = useSession();
   const lock = useAppLock();
+  const ai = useAiConsent();
   const [name, setName] = useState(profile?.displayName ?? '');
   const [agent, setAgent] = useState(profile?.agentName ?? 'Raco');
   const [saving, setSaving] = useState(false);
@@ -111,6 +115,36 @@ export default function Settings() {
           </Surface>
         </>
       ) : null}
+
+      <Caption style={{ marginTop: 12 }}>AI data sharing</Caption>
+      <Surface radius={14} style={{ minHeight: 56, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center' }}>
+        <Text style={{ flex: 1, fontFamily: fonts.bodyMedium, fontSize: 16, color: t.text }}>Use {config.aiProvider} for replies</Text>
+        <Toggle
+          label={`Use ${config.aiProvider} for replies`}
+          value={ai.consented}
+          onChange={(v) => void (v ? ai.ensure() : ai.withdraw()).catch(() => Alert.alert('Something went wrong', 'Please try again.'))}
+        />
+      </Surface>
+      <Text style={{ fontFamily: fonts.body, fontSize: 13, lineHeight: 18, color: t.sub, marginHorizontal: 4 }}>
+        {aiDisclosure(profile?.agentName ?? 'Raco')} While this is off, {profile?.agentName ?? 'Raco'} can’t reply to messages.
+      </Text>
+
+      <Caption style={{ marginTop: 12 }}>Help & legal</Caption>
+      <Surface radius={14} style={{ paddingHorizontal: 16 }}>
+        {[
+          { label: 'Contact support', onPress: () => void Linking.openURL(`mailto:${config.supportEmail}`) },
+          { label: 'Privacy Policy', onPress: () => void WebBrowser.openBrowserAsync(config.privacyUrl) },
+          { label: 'Terms of Service', onPress: () => void WebBrowser.openBrowserAsync(config.termsUrl) },
+        ].map((row, i) => (
+          <Pressable
+            key={row.label}
+            accessibilityRole="link"
+            onPress={row.onPress}
+            style={{ minHeight: 52, justifyContent: 'center', borderTopWidth: i ? 1 : 0, borderTopColor: t.hairline }}>
+            <Text style={{ fontFamily: fonts.bodyMedium, fontSize: 16, color: t.text }}>{row.label}</Text>
+          </Pressable>
+        ))}
+      </Surface>
 
       <Caption style={{ marginTop: 12 }}>Account</Caption>
       <Text style={{ fontFamily: fonts.body, fontSize: 15, color: t.sub, marginHorizontal: 4 }}>{session?.user.email}</Text>

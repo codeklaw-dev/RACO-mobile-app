@@ -4,6 +4,8 @@ import { streamSSE } from 'hono/streaming';
 import {
   DAILY_MESSAGE_LIMITS,
   chatRequestSchema,
+  interpretLocally,
+  reportRequestSchema,
   voiceTurnRequestSchema,
   type ChatErrorCode,
   type ChatStreamEvent,
@@ -58,6 +60,10 @@ export function createApp(deps: AppDeps) {
 
     const ctx = await deps.store.getUserContext(user.id);
     if (!ctx) return c.json(errorBody('unauthorized', 'Your account is not set up yet.'), 403);
+    // Guideline 5.1.2(i): nothing goes to the AI provider without permission.
+    if (!ctx.aiConsent) {
+      return c.json(errorBody('consent_required', 'Allow Raco to use its AI service to send messages. You can turn this on in Settings.'), 403);
+    }
 
     const used = await deps.store.countUserMessagesSince(user.id, new Date(Date.now() - DAY_MS));
     if (used >= DAILY_MESSAGE_LIMITS[ctx.plan]) {
@@ -147,7 +153,20 @@ export function createApp(deps: AppDeps) {
   app.post('/v1/onboarding/voice-turn', async (c) => {
     const parsed = voiceTurnRequestSchema.safeParse(await c.req.json().catch(() => null));
     if (!parsed.success) return c.json(errorBody('invalid_request', "That answer couldn't be read."), 400);
+    // Without AI consent, answers are read by the on-device rules instead.
+    const ctx = await deps.store.getUserContext(c.get('user').id);
+    if (!ctx?.aiConsent) return c.json(interpretLocally(parsed.data));
     return c.json(await deps.voice.interpret(parsed.data));
+  });
+
+  // Guideline 1.2: report an AI response for review.
+  app.post('/v1/reports', async (c) => {
+    const parsed = reportRequestSchema.safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) return c.json(errorBody('invalid_request', "That report couldn't be sent."), 400);
+    const { messageId, reason, note } = parsed.data;
+    const saved = await deps.store.reportMessage(c.get('user').id, messageId, reason, note);
+    if (!saved) return c.json(errorBody('not_found', 'That message no longer exists.'), 404);
+    return c.body(null, 204);
   });
 
   // Required by the App Store and Google Play: users can delete their account

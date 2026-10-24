@@ -1,7 +1,10 @@
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { useEffect, useRef, type ReactElement } from 'react';
-import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
+import { ActionSheetIOS, ActivityIndicator, Alert, FlatList, Platform, Pressable, Text, View } from 'react-native';
+import { REPORT_REASONS, type ReportReason } from '@raco/shared';
+import { reportMessage } from '@/lib/api';
+import { confirm, notify } from '@/lib/dialog';
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import type { UiMessage } from '@/state/use-chat';
 import { fonts, useTheme } from '@/theme';
@@ -53,7 +56,12 @@ function UserBubble({ message }: { message: UiMessage }) {
 function AssistantMessage({ message, agentName }: { message: UiMessage; agentName: string }) {
   const t = useTheme();
   return (
-    <Pressable onLongPress={() => copy(message.content)} accessibilityHint="Long press to copy" style={{ gap: 8 }}>
+    <Pressable
+      onLongPress={() => !message.pending && openActions(message)}
+      accessibilityHint="Long press to copy or report"
+      accessibilityActions={[{ name: 'copy', label: 'Copy' }, { name: 'report', label: 'Report response' }]}
+      onAccessibilityAction={(e) => (e.nativeEvent.actionName === 'copy' ? copy(message.content) : chooseReason(message))}
+      style={{ gap: 8 }}>
       <Text style={{ fontFamily: fonts.bodySemibold, fontSize: 14, color: t.text }}>{agentName}</Text>
       {message.content ? <Markdown text={message.content} /> : <TypingDots />}
     </Pressable>
@@ -89,4 +97,57 @@ export function CenteredSpinner() {
       <ActivityIndicator color={t.faint} />
     </View>
   );
+}
+
+const REASON_LABELS: Record<ReportReason, string> = {
+  harmful: 'Harmful or dangerous',
+  sexual: 'Sexual content',
+  hateful: 'Hateful or harassing',
+  inaccurate: 'Wrong or misleading',
+  other: 'Something else',
+};
+
+/** Copy or report an AI response (App Review Guideline 1.2). */
+function openActions(message: UiMessage) {
+  if (Platform.OS === 'ios') {
+    ActionSheetIOS.showActionSheetWithOptions(
+      { options: ['Copy', 'Report response', 'Cancel'], destructiveButtonIndex: 1, cancelButtonIndex: 2 },
+      (i) => (i === 0 ? copy(message.content) : i === 1 ? chooseReason(message) : undefined),
+    );
+  } else if (Platform.OS === 'web') {
+    chooseReason(message);
+  } else {
+    Alert.alert('Response', undefined, [
+      { text: 'Copy', onPress: () => copy(message.content) },
+      { text: 'Report response', style: 'destructive', onPress: () => chooseReason(message) },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  }
+}
+
+function send(message: UiMessage, reason: ReportReason) {
+  return reportMessage({ messageId: message.id, reason })
+    .then(() => notify('Thanks for telling us', 'We review every report and use it to make replies safer.'))
+    .catch((err: Error) => notify("Couldn't send the report", err.message));
+}
+
+function chooseReason(message: UiMessage) {
+  if (Platform.OS === 'web') {
+    void confirm('Report this response?', 'We review every report.', 'Report', 'Cancel').then((ok) => {
+      if (ok) void send(message, 'other');
+    });
+    return;
+  }
+  const labels = REPORT_REASONS.map((r) => REASON_LABELS[r]);
+  if (Platform.OS === 'ios') {
+    ActionSheetIOS.showActionSheetWithOptions(
+      { title: 'What’s wrong with this response?', options: [...labels, 'Cancel'], cancelButtonIndex: labels.length },
+      (i) => i < labels.length && void send(message, REPORT_REASONS[i]!),
+    );
+  } else {
+    Alert.alert('What’s wrong with this response?', undefined, [
+      ...REPORT_REASONS.map((r) => ({ text: REASON_LABELS[r], onPress: () => void send(message, r) })),
+      { text: 'Cancel', style: 'cancel' as const },
+    ]);
+  }
 }

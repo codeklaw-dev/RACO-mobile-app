@@ -87,6 +87,11 @@ describe('loadEnv', () => {
     expect(loadEnv(base).LLM_PROVIDER).toBe('demo');
   });
 
+  it('refuses the demo provider and memory store in production', () => {
+    expect(() => loadEnv({ ...base, NODE_ENV: 'production' })).toThrow(/LLM_PROVIDER/);
+    expect(() => loadEnv({ ...base, NODE_ENV: 'production', STORE: 'memory', LLM_PROVIDER: 'anthropic', ANTHROPIC_API_KEY: 'a' })).toThrow(/STORE/);
+  });
+
   it('requires the Anthropic key for Claude', () => {
     expect(() => loadEnv({ ...base, LLM_PROVIDER: 'anthropic' })).toThrow(/ANTHROPIC_API_KEY/);
     expect(loadEnv({ ...base, LLM_PROVIDER: 'anthropic', ANTHROPIC_API_KEY: 'a' }).LLM_PROVIDER).toBe('anthropic');

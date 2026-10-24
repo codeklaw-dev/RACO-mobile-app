@@ -1,6 +1,7 @@
 import type { ChatMessage, ChatMode } from '@raco/shared';
 import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useAiConsent } from '@/lib/ai-consent';
 import { ChatError, streamChat } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
 
@@ -33,6 +34,7 @@ export function useChat(initialId: string | null, onConversation?: (id: string) 
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const { ensure: ensureConsent } = useAiConsent();
   // Only an existing chat loads history. A new chat gets its id mid-stream,
   // and reloading then would replace the reply that's still streaming in.
   const [historyId] = useState(initialId);
@@ -62,6 +64,10 @@ export function useChat(initialId: string | null, onConversation?: (id: string) 
     async (text: string) => {
       const message = text.trim();
       if (!message || abortRef.current) return;
+      if (!(await ensureConsent())) {
+        setError('Raco needs your permission to use its AI service before it can reply.');
+        return;
+      }
 
       const now = new Date().toISOString();
       const replyId = nextLocalId();
@@ -114,7 +120,7 @@ export function useChat(initialId: string | null, onConversation?: (id: string) 
         );
       }
     },
-    [conversationId, onConversation, mode],
+    [conversationId, onConversation, mode, ensureConsent],
   );
 
   const stop = useCallback(() => abortRef.current?.abort(), []);

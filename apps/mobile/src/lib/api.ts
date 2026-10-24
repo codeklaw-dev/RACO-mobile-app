@@ -1,5 +1,5 @@
 import { fetch } from 'expo/fetch';
-import type { ChatErrorCode, ChatRequest, ChatStreamEvent } from '@raco/shared';
+import type { ChatErrorCode, ChatRequest, ChatStreamEvent, ReportRequest } from '@raco/shared';
 import { config } from './config';
 import { DEMO, demoStreamChat } from './demo';
 import { SseParser } from './sse';
@@ -66,6 +66,20 @@ export async function* streamChat(req: ChatRequest, signal?: AbortSignal): Async
   } finally {
     reader.releaseLock();
   }
+}
+
+/** Reports an AI response for review (App Review Guideline 1.2). */
+export async function reportMessage(req: ReportRequest): Promise<void> {
+  if (DEMO) return;
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) throw new ChatError('unauthorized', 'Sign in again to continue.');
+  const res = await fetch(`${config.apiUrl}/v1/reports`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  });
+  if (!res.ok) throw new ChatError('internal', "Couldn't send the report. Please try again.");
 }
 
 /** Permanently deletes the signed-in user's account and data. */
