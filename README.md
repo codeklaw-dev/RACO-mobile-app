@@ -71,6 +71,13 @@ allowed redirect URLs.
 The app uses native modules (speech recognition, Face ID, Sign in with Apple,
 secure storage), so it can't run in Expo Go. Build it with EAS instead.
 
+**Quickest: Expo Go.** Install Expo Go from the App Store or Play Store.
+`npm run publish:expo-go` (in `apps/mobile`, signed in to Expo via `npx
+eas-cli login` or `EXPO_TOKEN`) publishes the demo app as an update and prints
+a link and QR code that open it in Expo Go, on any network. Run it again after
+changes and the app in Expo Go picks them up. Or, on the same Wi-Fi, run `npx
+expo start` and scan its QR code. Voice input falls back to typing in Expo Go.
+
 **Try the feel on your own phone (demo build, no backend needed).** The
 `preview` profile turns on demo mode: sample data and sample replies, any email
 and the code `123456`.
