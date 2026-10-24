@@ -2,7 +2,7 @@
  * Reads and writes for chats, projects and tasks. The app talks to Supabase
  * directly; row level security keeps each user to their own rows.
  */
-import type { ConversationSummary, Project, Task } from '@raco/shared';
+import type { ConversationSummary, LibraryItem, Project, Task } from '@raco/shared';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from './supabase';
@@ -15,9 +15,23 @@ function check<T>({ data, error }: { data: T | null; error: { message: string } 
 // Chats ---------------------------------------------------------------------
 
 export async function listChats(projectId?: string): Promise<ConversationSummary[]> {
-  let q = supabase.from('conversations').select('id, title, updated_at, project_id').order('updated_at', { ascending: false }).limit(200);
+  let q = supabase.from('conversations').select('id, title, updated_at, project_id, pinned_at').order('updated_at', { ascending: false }).limit(200);
   if (projectId) q = q.eq('project_id', projectId);
-  return check(await q).map((c) => ({ id: c.id, title: c.title, updatedAt: c.updated_at, projectId: c.project_id ?? null }));
+  return check(await q).map((c) => ({
+    id: c.id,
+    title: c.title,
+    updatedAt: c.updated_at,
+    projectId: c.project_id ?? null,
+    pinnedAt: c.pinned_at ?? null,
+  }));
+}
+
+export async function renameChat(id: string, title: string): Promise<void> {
+  check(await supabase.from('conversations').update({ title }).eq('id', id));
+}
+
+export async function setChatPinned(id: string, pinned: boolean): Promise<void> {
+  check(await supabase.from('conversations').update({ pinned_at: pinned ? new Date().toISOString() : null }).eq('id', id));
 }
 
 export async function deleteChat(id: string): Promise<void> {
@@ -93,6 +107,34 @@ export async function updateTask(id: string, patch: { title?: string; notes?: st
 
 export async function deleteTask(id: string): Promise<void> {
   check(await supabase.from('tasks').delete().eq('id', id));
+}
+
+// Library -------------------------------------------------------------------
+
+type LibraryRow = { id: string; title: string; content: string; conversation_id: string | null; created_at: string };
+const toLibraryItem = (r: LibraryRow): LibraryItem => ({
+  id: r.id,
+  title: r.title,
+  content: r.content,
+  conversationId: r.conversation_id,
+  createdAt: r.created_at,
+});
+
+export async function listLibrary(): Promise<LibraryItem[]> {
+  return check(await supabase.from('library_items').select('id, title, content, conversation_id, created_at').order('created_at', { ascending: false })).map(
+    toLibraryItem,
+  );
+}
+
+/** Saves a reply; the title is its first line, trimmed. */
+export async function saveToLibrary(content: string, conversationId: string | null): Promise<void> {
+  const firstLine = content.replace(/[#>*_`]/g, '').trim().split('\n')[0] ?? 'Saved reply';
+  const title = firstLine.length > 80 ? `${firstLine.slice(0, 77)}…` : firstLine || 'Saved reply';
+  check(await supabase.from('library_items').insert({ title, content, conversation_id: conversationId }));
+}
+
+export async function removeFromLibrary(id: string): Promise<void> {
+  check(await supabase.from('library_items').delete().eq('id', id));
 }
 
 // Loading -------------------------------------------------------------------

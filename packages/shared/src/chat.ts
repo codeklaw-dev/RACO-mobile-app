@@ -46,6 +46,8 @@ export interface ConversationSummary {
   title: string;
   updatedAt: string;
   projectId: string | null;
+  /** Set when the chat is pinned to the top of the sidebar. */
+  pinnedAt: string | null;
 }
 
 export interface ChatMessage {

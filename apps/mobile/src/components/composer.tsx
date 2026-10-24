@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Alert, Platform, TextInput, View } from 'react-native';
 import { MAX_MESSAGE_CHARS } from '@raco/shared';
+import { useDictation } from '@/lib/voice';
 import { accent, fonts, noWebOutline, useTheme } from '@/theme';
 import { IconButton } from './button';
-import { MicIcon, PlusIcon, SendIcon, StopIcon, VoiceIcon } from './icons';
+import { ICONS, MicIcon, PathIcon, PlusIcon, SendIcon, StopIcon, VoiceIcon } from './icons';
 import { surfaceStyle, useSurface } from './surface';
 
 interface Props {
@@ -27,18 +28,36 @@ export function Composer({ onSend, onStop, onVoice, streaming, autoFocus, initia
   const glass = useSurface('glass');
   const [text, setText] = useState(initialText);
   const hasText = text.trim().length > 0;
+  // Dictated words are added after whatever was typed before the mic opened.
+  const typedBefore = useRef('');
+  const dictation = useDictation((spoken) => setText(`${typedBefore.current}${typedBefore.current && spoken ? ' ' : ''}${spoken}`));
 
   const submit = () => {
     if (!hasText || streaming) return;
+    if (dictation.listening) void dictation.toggle();
     onSend(text.trim());
     setText('');
+  };
+
+  const dictate = () => {
+    if (!dictation.listening) typedBefore.current = text.trim();
+    void dictation.toggle();
   };
 
   return (
     <View
       style={[
         surfaceStyle(glass),
-        { borderWidth: 0, borderRadius: 20, padding: 8, flexDirection: 'row', alignItems: 'flex-end', gap: 6 },
+        // A pill: fully round while it's one line, softly rounded as it grows.
+        {
+          borderWidth: 0,
+          borderRadius: 28,
+          paddingVertical: 8,
+          paddingHorizontal: 8,
+          flexDirection: 'row',
+          alignItems: 'flex-end',
+          gap: 4,
+        },
       ]}>
       <IconButton kind="plain" size={40} label="Add photos and files" onPress={() => comingSoon('Adding files')}>
         <PlusIcon color={t.text} />
@@ -46,7 +65,7 @@ export function Composer({ onSend, onStop, onVoice, streaming, autoFocus, initia
       <TextInput
         value={text}
         onChangeText={setText}
-        placeholder="Ask anything"
+        placeholder={dictation.listening ? 'Listening…' : 'Ask anything'}
         placeholderTextColor={t.faint}
         accessibilityLabel="Message"
         selectionColor={accent}
@@ -72,9 +91,9 @@ export function Composer({ onSend, onStop, onVoice, streaming, autoFocus, initia
           ...noWebOutline,
         }}
       />
-      {!hasText && !streaming ? (
-        <IconButton kind="plain" size={40} label="Dictate" onPress={() => comingSoon('Dictation')}>
-          <MicIcon color={t.text} />
+      {dictation.available && !streaming ? (
+        <IconButton kind="plain" size={40} label={dictation.listening ? 'Stop dictating' : 'Dictate'} onPress={dictate}>
+          {dictation.listening ? <PathIcon d={ICONS.stopSquare} color={accent} size={18} strokeWidth={2} /> : <MicIcon color={t.text} />}
         </IconButton>
       ) : null}
       {streaming ? (

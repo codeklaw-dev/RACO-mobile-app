@@ -30,6 +30,7 @@ interface DemoChat {
   title: string;
   updated_at: string;
   project_id?: string | null;
+  pinned_at?: string | null;
   messages: { id: string; role: 'user' | 'assistant'; content: string; created_at: string }[];
 }
 
@@ -49,6 +50,7 @@ const state = {
   chats: [] as DemoChat[],
   projects: [] as Row[],
   tasks: [] as Row[],
+  library: [] as Row[],
   seeded: false,
 };
 loadState();
@@ -87,7 +89,7 @@ function seed() {
   saveState();
 }
 
-const TABLES = { projects: () => state.projects, tasks: () => state.tasks } as const;
+const TABLES = { projects: () => state.projects, tasks: () => state.tasks, library_items: () => state.library } as const;
 
 /** A small PostgREST stand-in: eq/is filters, order, limit, insert, update, delete. */
 function table(name: keyof typeof TABLES, url: URL, method: string, headers: Headers, body: unknown): Response {
@@ -106,7 +108,7 @@ function table(name: keyof typeof TABLES, url: URL, method: string, headers: Hea
         id: `${name[0]}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         created_at: now,
         updated_at: now,
-        ...(name === 'tasks' ? { notes: '', project_id: null, done_at: null } : { description: '' }),
+        ...(name === 'tasks' ? { notes: '', project_id: null, done_at: null } : name === 'projects' ? { description: '' } : { conversation_id: null }),
         ...(b as object),
       }));
       rows.unshift(...added);
@@ -196,6 +198,8 @@ export async function demoFetch(input: RequestInfo | URL, init?: RequestInit): P
       return table('projects', url, method, headers, body);
     case '/rest/v1/tasks':
       return table('tasks', url, method, headers, body);
+    case '/rest/v1/library_items':
+      return table('library_items', url, method, headers, body);
     case '/rest/v1/conversations': {
       const id = url.searchParams.get('id')?.replace('eq.', '');
       if (method === 'DELETE') {
@@ -215,7 +219,11 @@ export async function demoFetch(input: RequestInfo | URL, init?: RequestInit): P
         .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
       const range = { 'content-range': `0-${Math.max(list.length - 1, 0)}/${list.length}` };
       if (method === 'HEAD') return new Response(null, { status: 200, headers: range });
-      return json(list.map(({ id, title, updated_at, project_id }) => ({ id, title, updated_at, project_id: project_id ?? null })), 200, range);
+      return json(
+        list.map(({ id, title, updated_at, project_id, pinned_at }) => ({ id, title, updated_at, project_id: project_id ?? null, pinned_at: pinned_at ?? null })),
+        200,
+        range,
+      );
     }
     case '/rest/v1/messages': {
       const id = url.searchParams.get('conversation_id')?.replace('eq.', '');

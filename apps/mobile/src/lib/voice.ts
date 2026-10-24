@@ -55,6 +55,21 @@ export function stopSpeaking() {
   Speech.stop();
 }
 
+/**
+ * Adds text to the phone's speech queue without interrupting what's already
+ * playing; `onDone` runs when this piece finishes or is stopped.
+ */
+export async function speakQueued(text: string, onDone: () => void): Promise<void> {
+  const voice = await pickVoice();
+  let finished = false;
+  const done = () => {
+    if (finished) return;
+    finished = true;
+    onDone();
+  };
+  Speech.speak(text, { voice, rate: 1.0, onDone: done, onStopped: done, onError: done });
+}
+
 // ---------------------------------------------------------------------------
 // Listening: the phone's built-in speech recognition, push-to-talk.
 // ---------------------------------------------------------------------------
@@ -141,6 +156,106 @@ export function useHoldToTalk(onFinal: (transcript: string) => void) {
   const stop = useCallback(() => recognizer?.stop(), []);
 
   return { listening, partial, unavailable, start, stop };
+}
+
+/**
+ * Dictation into a text field: `toggle` starts and stops listening, and
+ * `onText` receives the running transcript. Unavailable in Expo Go.
+ */
+export function useDictation(onText: (transcript: string) => void) {
+  const [listening, setListening] = useState(false);
+  const onTextRef = useRef(onText);
+  useEffect(() => {
+    onTextRef.current = onText;
+  }, [onText]);
+
+  useEffect(() => {
+    if (!recognizer) return;
+    const subs = [
+      recognizer.addListener('start', () => setListening(true)),
+      recognizer.addListener('end', () => setListening(false)),
+      recognizer.addListener('error', () => setListening(false)),
+      recognizer.addListener('result', (e) => onTextRef.current(e.results[0]?.transcript ?? '')),
+    ];
+    return () => subs.forEach((s) => s.remove());
+  }, []);
+
+  const toggle = useCallback(async () => {
+    if (!recognizer) return;
+    if (listening) {
+      recognizer.stop();
+      return;
+    }
+    if (!(await requestMicrophone())) return;
+    stopSpeaking();
+    recognizer.start({ lang: 'en-US', interimResults: true, continuous: true, addsPunctuation: true });
+  }, [listening]);
+
+  return { available: !!recognizer && speechRecognitionAvailable(), listening, toggle };
+}
+
+/**
+ * Hands-free listening for voice mode: `listen()` opens the mic and stops on
+ * its own when the user pauses; `onFinal` gets what they said and `onVolume`
+ * the input level (0-1) for the orb. Unavailable in Expo Go.
+ */
+export function useConversationMic({ onFinal, onVolume }: { onFinal: (text: string) => void; onVolume?: (level: number) => void }) {
+  const [listening, setListening] = useState(false);
+  const [partial, setPartial] = useState('');
+  const latest = useRef('');
+  const handlers = useRef({ onFinal, onVolume });
+  useEffect(() => {
+    handlers.current = { onFinal, onVolume };
+  }, [onFinal, onVolume]);
+
+  useEffect(() => {
+    if (!recognizer) return;
+    const subs = [
+      recognizer.addListener('start', () => setListening(true)),
+      recognizer.addListener('result', (e) => {
+        latest.current = e.results[0]?.transcript ?? '';
+        setPartial(latest.current);
+      }),
+      recognizer.addListener('volumechange', (e) => handlers.current.onVolume?.(Math.max(0, Math.min(1, (e.value + 2) / 12)))),
+      recognizer.addListener('end', () => {
+        setListening(false);
+        setPartial('');
+        handlers.current.onVolume?.(0);
+        const text = latest.current.trim();
+        latest.current = '';
+        if (text) handlers.current.onFinal(text);
+      }),
+      recognizer.addListener('error', () => setListening(false)),
+    ];
+    return () => subs.forEach((s) => s.remove());
+  }, []);
+
+  // Between start() and the 'start' event `listening` is still false; this stops a second start.
+  const starting = useRef(false);
+  const listen = useCallback(async () => {
+    if (!recognizer || listening || starting.current) return;
+    starting.current = true;
+    if (!(await requestMicrophone())) {
+      starting.current = false;
+      return;
+    }
+    latest.current = '';
+    setTimeout(() => (starting.current = false), 800);
+    recognizer.start({
+      lang: 'en-US',
+      interimResults: true,
+      continuous: false,
+      addsPunctuation: true,
+      volumeChangeEventOptions: { enabled: true, intervalMillis: 100 },
+    });
+  }, [listening]);
+
+  const cancel = useCallback(() => {
+    latest.current = '';
+    recognizer?.abort();
+  }, []);
+
+  return { available: !!recognizer && speechRecognitionAvailable(), listening, partial, listen, cancel };
 }
 
 // ---------------------------------------------------------------------------

@@ -12,11 +12,17 @@ export interface UiMessage extends ChatMessage {
 
 interface ChatState {
   conversationId: string | null;
+  /** The conversation's title, once known. */
+  title: string | null;
+  /** The project the conversation is filed under, if any. */
+  projectId: string | null;
   messages: UiMessage[];
   loading: boolean;
   streaming: boolean;
   error: string | null;
   send(text: string): Promise<void>;
+  /** Sends the last message again after an error. */
+  retry(): void;
   stop(): void;
 }
 
@@ -39,6 +45,8 @@ export function useChat(
   const [loading, setLoading] = useState(!!initialId);
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [title, setTitle] = useState<string | null>(null);
+  const [chatProjectId, setChatProjectId] = useState<string | null>(projectId ?? null);
   const abortRef = useRef<AbortController | null>(null);
   const { ensure: ensureConsent } = useAiConsent();
   // Only an existing chat loads history. A new chat gets its id mid-stream,
@@ -48,6 +56,16 @@ export function useChat(
   useEffect(() => {
     if (!historyId) return;
     let active = true;
+    void supabase
+      .from('conversations')
+      .select('title, project_id')
+      .eq('id', historyId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!active || !data) return;
+        setTitle(data.title);
+        setChatProjectId(data.project_id ?? null);
+      });
     supabase
       .from('messages')
       .select('id, role, content, created_at')
@@ -95,6 +113,7 @@ export function useChat(
         for await (const event of streamChat({ conversationId: conversationId ?? undefined, projectId: conversationId ? undefined : projectId, message, mode }, abort.signal)) {
           switch (event.type) {
             case 'conversation':
+              setTitle(event.title);
               if (!conversationId) {
                 setConversationId(event.conversationId);
                 onConversation?.(event.conversationId);
@@ -131,5 +150,13 @@ export function useChat(
 
   const stop = useCallback(() => abortRef.current?.abort(), []);
 
-  return { conversationId, messages, loading, streaming, error, send, stop };
+  const retry = useCallback(() => {
+    const lastUser = [...messages].reverse().find((m) => m.role === 'user');
+    if (!lastUser || abortRef.current) return;
+    // Drop the failed attempt so the message isn't shown twice.
+    setMessages((all) => all.filter((m) => m.id !== lastUser.id));
+    void send(lastUser.content);
+  }, [messages, send]);
+
+  return { conversationId, title, projectId: chatProjectId, messages, loading, streaming, error, send, retry, stop };
 }

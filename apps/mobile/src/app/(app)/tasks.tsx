@@ -53,7 +53,7 @@ export default function Tasks() {
   return (
     <View style={{ flex: 1, backgroundColor: t.background, paddingTop: insets.top + 8 }}>
       <View style={{ paddingHorizontal: 16, gap: 12, paddingBottom: 12 }}>
-        <NavBar title="Tasks" />
+        <NavBar title="Daily tasks" />
         <SearchField value={query} onChangeText={setQuery} placeholder="Search tasks" />
         <Segmented
           value={filter}
