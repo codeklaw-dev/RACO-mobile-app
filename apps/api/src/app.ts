@@ -4,6 +4,7 @@ import { streamSSE } from 'hono/streaming';
 import {
   DAILY_MESSAGE_LIMITS,
   chatRequestSchema,
+  voiceTurnRequestSchema,
   type ChatErrorCode,
   type ChatStreamEvent,
 } from '@raco/shared';
@@ -11,6 +12,7 @@ import { bearerToken, type AuthUser, type VerifyToken } from './auth';
 import type { Llm } from './llm';
 import { buildSystemPrompt, titleFromMessage } from './prompt';
 import type { Store } from './store';
+import type { VoiceInterpreter } from './voice';
 
 /** How many earlier messages are sent to the model with each turn. */
 export const HISTORY_LIMIT = 40;
@@ -21,6 +23,7 @@ export interface AppDeps {
   verifyToken: VerifyToken;
   store: Store;
   llm: Llm;
+  voice: VoiceInterpreter;
   corsOrigins?: string[];
   log?: (msg: string, err?: unknown) => void;
 }
@@ -137,6 +140,14 @@ export function createApp(deps: AppDeps) {
         });
       }
     });
+  });
+
+  // One spoken answer during voice onboarding: what Raco understood and what
+  // it says back. Small and cheap, so it isn't counted against chat quotas.
+  app.post('/v1/onboarding/voice-turn', async (c) => {
+    const parsed = voiceTurnRequestSchema.safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) return c.json(errorBody('invalid_request', "That answer couldn't be read."), 400);
+    return c.json(await deps.voice.interpret(parsed.data));
   });
 
   // Required by the App Store and Google Play: users can delete their account

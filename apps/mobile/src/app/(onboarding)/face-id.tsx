@@ -13,7 +13,8 @@ import { accent } from '@/theme';
 export default function FaceId() {
   const lock = useAppLock();
   const [busy, setBusy] = useState(false);
-  const next = () => router.replace('/name');
+  // Voice-led onboarding is the default; it offers typing at every step.
+  const next = () => router.replace('/voice');
 
   useEffect(() => {
     void lock.available().then((ok) => {

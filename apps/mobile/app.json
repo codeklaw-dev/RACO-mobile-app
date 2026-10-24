@@ -40,6 +40,13 @@
         }
       ],
       [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Raco listens only while you hold the talk button, so you can answer by voice.",
+          "speechRecognitionPermission": "Raco turns what you say into text so it can understand your answers."
+        }
+      ],
+      [
         "expo-notifications",
         {
           "color": "#FC7965"

@@ -4,6 +4,7 @@ import type { ChatStreamEvent } from '@raco/shared';
 import { createApp, HISTORY_LIMIT } from '../src/app';
 import type { CompletionEvent, CompletionRequest, Llm } from '../src/llm';
 import { buildSystemPrompt, titleFromMessage } from '../src/prompt';
+import { interpretLocally } from '@raco/shared';
 import type { Conversation, Store, StoredMessage, UsageRecord, UserContext } from '../src/store';
 
 const USER_ID = '11111111-1111-4111-8111-111111111111';
@@ -91,6 +92,7 @@ function setup(llm: Llm = replying('Hello', ' Sam!'), store = new MemoryStore())
   const app = createApp({
     store,
     llm,
+    voice: { interpret: async (req) => interpretLocally(req) },
     verifyToken: async (token) =>
       token === 'good' ? { id: USER_ID } : token === 'other' ? { id: OTHER_USER } : null,
     log: () => {},
@@ -224,6 +226,28 @@ describe('DELETE /v1/account', () => {
     const res = await app.request('/v1/account', { method: 'DELETE' });
     expect(res.status).toBe(401);
     expect(store.deleted).toEqual([]);
+  });
+});
+
+describe('POST /v1/onboarding/voice-turn', () => {
+  const post = (app: ReturnType<typeof setup>['app'], body: unknown, token = 'good') =>
+    app.request('/v1/onboarding/voice-turn', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+  it('returns what Raco understood', async () => {
+    const { app } = setup();
+    const res = await post(app, { step: 'name', transcript: "I'm Sam", agentName: 'Raco' });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ understood: true, displayName: 'Sam' });
+  });
+
+  it('rejects unknown steps and unauthenticated calls', async () => {
+    const { app } = setup();
+    expect((await post(app, { step: 'nope', transcript: 'x', agentName: 'Raco' })).status).toBe(400);
+    expect((await post(app, { step: 'name', transcript: 'Sam', agentName: 'Raco' }, 'bad')).status).toBe(401);
   });
 });
 
