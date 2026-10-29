@@ -2,6 +2,7 @@
   "expo": {
     "name": "Raco",
     "slug": "raco-ai-app",
+    "owner": "codeklaw-dev",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
