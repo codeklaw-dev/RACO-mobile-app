@@ -4,12 +4,13 @@
  * in-memory with sample data. Production builds never set the flag.
  */
 import { demoReply, VOICE_GUIDANCE, type ChatMode, type ChatStreamEvent } from '@raco/shared';
+import { fetch as expoFetch } from 'expo/fetch';
 import { config, DEMO } from './config';
 import { noteSampleError, previewSample, streamPreviewReply } from './preview-ai';
 import { SseParser } from './sse';
 
 export { DEMO };
-const netFetch = globalThis.fetch;
+const netFetch = typeof expoFetch === 'function' ? expoFetch : globalThis.fetch;
 
 const USER_ID = '00000000-0000-4000-8000-000000000001';
 
@@ -280,51 +281,81 @@ async function* streamLlmDirect(
     signal,
   });
 
-  if (!res.ok || !res.body) {
+  if (!res.ok) {
     throw new Error(`LLM returned ${res.status}`);
   }
 
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  const parser = new SseParser();
   let sentAnyText = false;
   let reasoningBuffer = '';
+  const parser = new SseParser();
 
-  try {
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      for (const data of parser.push(decoder.decode(value, { stream: true }))) {
-        if (data === '[DONE]') continue;
-        try {
-          const chunk = JSON.parse(data) as {
-            choices?: {
-              delta?: {
-                content?: string | null;
-                reasoning?: string | null;
-                reasoning_content?: string | null;
-              };
-            }[];
-          };
-          const delta = chunk.choices?.[0]?.delta;
-          const text = delta?.content;
-          if (text) {
-            sentAnyText = true;
-            yield text;
-          } else {
-            const reasoning = delta?.reasoning ?? delta?.reasoning_content;
-            if (reasoning) reasoningBuffer += reasoning;
+  if (res.body && typeof res.body.getReader === 'function') {
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    try {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        for (const data of parser.push(decoder.decode(value, { stream: true }))) {
+          if (data === '[DONE]') continue;
+          try {
+            const chunk = JSON.parse(data) as {
+              choices?: {
+                delta?: {
+                  content?: string | null;
+                  reasoning?: string | null;
+                  reasoning_content?: string | null;
+                };
+              }[];
+            };
+            const delta = chunk.choices?.[0]?.delta;
+            const text = delta?.content;
+            if (text) {
+              sentAnyText = true;
+              yield text;
+            } else {
+              const reasoning = delta?.reasoning ?? delta?.reasoning_content;
+              if (reasoning) reasoningBuffer += reasoning;
+            }
+          } catch {
+            // ignore partial JSON
           }
-        } catch {
-          // ignore partial JSON
         }
       }
+    } finally {
+      reader.releaseLock();
     }
-    if (!sentAnyText && reasoningBuffer) {
-      yield reasoningBuffer;
+  } else {
+    const fullText = await res.text();
+    for (const data of parser.push(fullText)) {
+      if (data === '[DONE]') continue;
+      try {
+        const chunk = JSON.parse(data) as {
+          choices?: {
+            delta?: {
+              content?: string | null;
+              reasoning?: string | null;
+              reasoning_content?: string | null;
+            };
+          }[];
+        };
+        const delta = chunk.choices?.[0]?.delta;
+        const text = delta?.content;
+        if (text) {
+          sentAnyText = true;
+          yield text;
+        } else {
+          const reasoning = delta?.reasoning ?? delta?.reasoning_content;
+          if (reasoning) reasoningBuffer += reasoning;
+        }
+      } catch {
+        // ignore partial JSON
+      }
     }
-  } finally {
-    reader.releaseLock();
+  }
+
+  if (!sentAnyText && reasoningBuffer) {
+    yield reasoningBuffer;
   }
 }
 
