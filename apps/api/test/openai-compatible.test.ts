@@ -43,6 +43,7 @@ describe('OpenAICompatibleLlm', () => {
     ]);
     expect(requests[0]!.url).toBe('https://models.example/v1/chat/completions');
     expect(requests[0]!.headers.get('authorization')).toBe('Bearer k');
+    expect(requests[0]!.headers.get('ngrok-skip-browser-warning')).toBe('true');
     expect(requests[0]!.body).toMatchObject({
       model: 'my-model',
       stream: true,
@@ -51,6 +52,29 @@ describe('OpenAICompatibleLlm', () => {
         { role: 'user', content: 'Hi' },
       ],
     });
+  });
+
+  it('handles endpoints that already end in /chat/completions without duplicating', async () => {
+    const { fetchImpl, requests } = fakeServer(() => sse([delta('ok'), 'data: [DONE]\n\n']));
+    const llm = new OpenAICompatibleLlm({
+      baseUrl: 'https://models.example/v1/chat/completions',
+      apiKey: 'k',
+      model: 'my-model',
+      fetch: fetchImpl,
+    });
+    const events = [];
+    for await (const e of llm.stream({ system: '', messages: [] })) events.push(e);
+    expect(requests[0]!.url).toBe('https://models.example/v1/chat/completions');
+  });
+
+  it('handles reasoning delta chunks and falls back to reasoning if content is empty', async () => {
+    const reasoningDelta = (reasoning: string) => `data: ${JSON.stringify({ choices: [{ delta: { reasoning } }] })}\n\n`;
+    const all = reasoningDelta('Thinking...') + reasoningDelta(' Done.') + 'data: [DONE]\n\n';
+    const { fetchImpl } = fakeServer(() => sse([all]));
+    const llm = new OpenAICompatibleLlm({ baseUrl: 'https://m/v1', apiKey: 'k', model: 'x', fetch: fetchImpl });
+    const events = [];
+    for await (const e of llm.stream({ system: '', messages: [] })) events.push(e);
+    expect(events[0]).toEqual({ type: 'text', text: 'Thinking... Done.' });
   });
 
   it('throws on a server error so the chat route reports it', async () => {
@@ -101,5 +125,17 @@ describe('loadEnv', () => {
     expect(() => loadEnv({ ...base, LLM_PROVIDER: 'openai-compatible' })).toThrow(/LLM_BASE_URL.*LLM_API_KEY.*CHAT_MODEL/);
     const env = loadEnv({ ...base, LLM_PROVIDER: 'openai-compatible', LLM_BASE_URL: 'https://m.example/v1', LLM_API_KEY: 'k', CHAT_MODEL: 'm' });
     expect(env.LLM_BASE_URL).toBe('https://m.example/v1');
+  });
+
+  it('accepts LLM_CHAT_URL and LLM_MODEL as aliases for openai-compatible', () => {
+    const env = loadEnv({
+      ...base,
+      LLM_CHAT_URL: 'https://m.example/v1/chat/completions',
+      LLM_MODEL: 'qwen3',
+      LLM_API_KEY: 'k',
+    });
+    expect(env.LLM_PROVIDER).toBe('openai-compatible');
+    expect(env.LLM_BASE_URL).toBe('https://m.example/v1/chat/completions');
+    expect(env.CHAT_MODEL).toBe('qwen3');
   });
 });

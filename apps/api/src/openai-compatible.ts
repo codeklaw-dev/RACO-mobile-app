@@ -24,12 +24,20 @@ export interface OpenAICompatibleConfig {
 
 interface ChatChunk {
   model?: string;
-  choices?: { delta?: { content?: string | null }; finish_reason?: string | null }[];
+  choices?: {
+    delta?: {
+      content?: string | null;
+      reasoning?: string | null;
+      reasoning_content?: string | null;
+    };
+    finish_reason?: string | null;
+  }[];
   usage?: { prompt_tokens?: number; completion_tokens?: number } | null;
 }
 
 function endpoint(baseUrl: string): string {
-  return `${baseUrl.replace(/\/+$/, '')}/chat/completions`;
+  const cleaned = baseUrl.replace(/\/+$/, '');
+  return cleaned.endsWith('/chat/completions') ? cleaned : `${cleaned}/chat/completions`;
 }
 
 export class OpenAICompatibleLlm implements Llm {
@@ -42,7 +50,11 @@ export class OpenAICompatibleLlm implements Llm {
   async *stream(req: CompletionRequest): AsyncIterable<CompletionEvent> {
     const res = await this.fetch(endpoint(this.cfg.baseUrl), {
       method: 'POST',
-      headers: { Authorization: `Bearer ${this.cfg.apiKey}`, 'Content-Type': 'application/json' },
+      headers: {
+        Authorization: `Bearer ${this.cfg.apiKey}`,
+        'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': 'true',
+      },
       body: JSON.stringify({
         model: this.cfg.model,
         stream: true,
@@ -58,6 +70,8 @@ export class OpenAICompatibleLlm implements Llm {
     let model = this.cfg.model;
     let inputTokens = 0;
     let outputTokens = 0;
+    let sentAnyText = false;
+    let reasoningBuffer = '';
     const decoder = new TextDecoder();
     let buffer = '';
 
@@ -81,9 +95,20 @@ export class OpenAICompatibleLlm implements Llm {
           inputTokens = chunk.usage.prompt_tokens ?? inputTokens;
           outputTokens = chunk.usage.completion_tokens ?? outputTokens;
         }
-        const text = chunk.choices?.[0]?.delta?.content;
-        if (text) yield { type: 'text', text };
+        const delta = chunk.choices?.[0]?.delta;
+        const text = delta?.content;
+        if (text) {
+          sentAnyText = true;
+          yield { type: 'text', text };
+        } else {
+          const reasoning = delta?.reasoning ?? delta?.reasoning_content;
+          if (reasoning) reasoningBuffer += reasoning;
+        }
       }
+    }
+
+    if (!sentAnyText && reasoningBuffer) {
+      yield { type: 'text', text: reasoningBuffer };
     }
 
     yield {
@@ -113,7 +138,11 @@ export class OpenAICompatibleVoiceInterpreter implements VoiceInterpreter {
     try {
       const res = await this.fetch(endpoint(this.cfg.baseUrl), {
         method: 'POST',
-        headers: { Authorization: `Bearer ${this.cfg.apiKey}`, 'Content-Type': 'application/json' },
+        headers: {
+          Authorization: `Bearer ${this.cfg.apiKey}`,
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true',
+        },
         body: JSON.stringify({
           model: this.cfg.model,
           temperature: 0,
@@ -129,8 +158,9 @@ export class OpenAICompatibleVoiceInterpreter implements VoiceInterpreter {
         signal: AbortSignal.timeout(15_000),
       });
       if (!res.ok) throw new Error(`Model server returned ${res.status}`);
-      const body = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-      const content = body.choices?.[0]?.message?.content ?? '';
+      const body = (await res.json()) as { choices?: { message?: { content?: string | null; reasoning?: string | null } }[] };
+      const message = body.choices?.[0]?.message;
+      const content = message?.content || message?.reasoning || '';
       const json = content.slice(content.indexOf('{'), content.lastIndexOf('}') + 1);
       const parsed = voiceResultSchema.safeParse(JSON.parse(json));
       if (!parsed.success) throw new Error('Model reply did not match the expected shape');

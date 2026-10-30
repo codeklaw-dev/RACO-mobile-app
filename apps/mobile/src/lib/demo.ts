@@ -4,9 +4,13 @@
  * in-memory with sample data. Production builds never set the flag.
  */
 import { demoReply, VOICE_GUIDANCE, type ChatMode, type ChatStreamEvent } from '@raco/shared';
+import { fetch as expoFetch } from 'expo/fetch';
+import { config, DEMO } from './config';
 import { noteSampleError, previewSample, streamPreviewReply } from './preview-ai';
+import { SseParser } from './sse';
 
-export const DEMO = process.env.EXPO_PUBLIC_DEMO === '1';
+export { DEMO };
+const netFetch = typeof expoFetch === 'function' ? expoFetch : globalThis.fetch;
 
 const USER_ID = '00000000-0000-4000-8000-000000000001';
 
@@ -249,6 +253,112 @@ function previewInstructions(mode: ChatMode = 'text'): string {
     .join('\n');
 }
 
+/** Streams live text from the configured OpenAI-compatible LLM directly in Expo Go / demo mode. */
+async function* streamLlmDirect(
+  messages: { role: 'user' | 'assistant'; content: string }[],
+  systemPrompt: string,
+  signal?: AbortSignal,
+): AsyncGenerator<string> {
+  const rawUrl = config.llmChatUrl.replace(/\/+$/, '');
+  const url = rawUrl.endsWith('/chat/completions') ? rawUrl : `${rawUrl}/chat/completions`;
+
+  const res = await netFetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${config.llmApiKey}`,
+      'Content-Type': 'application/json',
+      Accept: 'text/event-stream',
+      'ngrok-skip-browser-warning': 'true',
+    },
+    body: JSON.stringify({
+      model: config.llmModel || 'qwen3',
+      stream: true,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        ...messages.map((m) => ({ role: m.role, content: m.content })),
+      ],
+    }),
+    signal,
+  });
+
+  if (!res.ok) {
+    throw new Error(`LLM returned ${res.status}`);
+  }
+
+  let sentAnyText = false;
+  let reasoningBuffer = '';
+  const parser = new SseParser();
+
+  if (res.body && typeof res.body.getReader === 'function') {
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    try {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        for (const data of parser.push(decoder.decode(value, { stream: true }))) {
+          if (data === '[DONE]') continue;
+          try {
+            const chunk = JSON.parse(data) as {
+              choices?: {
+                delta?: {
+                  content?: string | null;
+                  reasoning?: string | null;
+                  reasoning_content?: string | null;
+                };
+              }[];
+            };
+            const delta = chunk.choices?.[0]?.delta;
+            const text = delta?.content;
+            if (text) {
+              sentAnyText = true;
+              yield text;
+            } else {
+              const reasoning = delta?.reasoning ?? delta?.reasoning_content;
+              if (reasoning) reasoningBuffer += reasoning;
+            }
+          } catch {
+            // ignore partial JSON
+          }
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
+  } else {
+    const fullText = await res.text();
+    for (const data of parser.push(fullText)) {
+      if (data === '[DONE]') continue;
+      try {
+        const chunk = JSON.parse(data) as {
+          choices?: {
+            delta?: {
+              content?: string | null;
+              reasoning?: string | null;
+              reasoning_content?: string | null;
+            };
+          }[];
+        };
+        const delta = chunk.choices?.[0]?.delta;
+        const text = delta?.content;
+        if (text) {
+          sentAnyText = true;
+          yield text;
+        } else {
+          const reasoning = delta?.reasoning ?? delta?.reasoning_content;
+          if (reasoning) reasoningBuffer += reasoning;
+        }
+      } catch {
+        // ignore partial JSON
+      }
+    }
+  }
+
+  if (!sentAnyText && reasoningBuffer) {
+    yield reasoningBuffer;
+  }
+}
+
 /** Stands in for the RACO API's streaming chat endpoint. */
 export async function* demoStreamChat(
   req: { conversationId?: string; projectId?: string; message: string; mode?: ChatMode },
@@ -279,6 +389,19 @@ export async function* demoStreamChat(
       }
     } catch (err) {
       noteSampleError(err);
+      if (!sent && (err as { code?: string })?.code !== 'cancelled') {
+        yield* scripted();
+      }
+    }
+  } else if (config.llmChatUrl && config.llmApiKey) {
+    // Real replies from the configured LLM in Expo Go / Demo mode.
+    try {
+      for await (const delta of streamLlmDirect(chat.messages, previewInstructions(req.mode), signal)) {
+        sent += delta;
+        yield { type: 'delta', text: delta };
+      }
+    } catch (err) {
+      console.warn('Direct LLM stream failed in Expo Go, falling back to scripted', err);
       if (!sent && (err as { code?: string })?.code !== 'cancelled') {
         yield* scripted();
       }
