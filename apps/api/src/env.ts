@@ -13,8 +13,10 @@ const envSchema = z.object({
   LLM_PROVIDER: z.enum(['demo', 'anthropic', 'openai-compatible']).default('demo'),
   ANTHROPIC_API_KEY: z.string().optional(),
   LLM_BASE_URL: z.url().optional(),
+  LLM_CHAT_URL: z.url().optional(),
   LLM_API_KEY: z.string().optional(),
   CHAT_MODEL: z.string().min(1).optional(),
+  LLM_MODEL: z.string().min(1).optional(),
   // Voice onboarding only extracts a name or a yes/no, so a small model is enough.
   VOICE_MODEL: z.string().min(1).optional(),
   CORS_ORIGINS: z
@@ -39,16 +41,26 @@ const checkedEnvSchema = envSchema.superRefine((env, ctx) => {
   }
   if (env.LLM_PROVIDER === 'anthropic') need('ANTHROPIC_API_KEY');
   else if (env.LLM_PROVIDER === 'openai-compatible') {
-    need('LLM_BASE_URL');
+    if (!env.LLM_BASE_URL && !env.LLM_CHAT_URL) need('LLM_BASE_URL');
     need('LLM_API_KEY');
-    need('CHAT_MODEL');
+    if (!env.CHAT_MODEL && !env.LLM_MODEL) need('CHAT_MODEL');
   }
 });
 
 export type Env = z.infer<typeof envSchema>;
 
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
-  const parsed = checkedEnvSchema.safeParse(source);
+  const normalized: NodeJS.ProcessEnv = { ...source };
+  if (!normalized.LLM_BASE_URL && normalized.LLM_CHAT_URL) {
+    normalized.LLM_BASE_URL = normalized.LLM_CHAT_URL;
+  }
+  if (!normalized.CHAT_MODEL && normalized.LLM_MODEL) {
+    normalized.CHAT_MODEL = normalized.LLM_MODEL;
+  }
+  if ((normalized.LLM_BASE_URL || normalized.LLM_CHAT_URL) && (!normalized.LLM_PROVIDER || normalized.LLM_PROVIDER === 'demo')) {
+    normalized.LLM_PROVIDER = 'openai-compatible';
+  }
+  const parsed = checkedEnvSchema.safeParse(normalized);
   if (!parsed.success) {
     const missing = parsed.error.issues.map((i) => i.path.join('.')).join(', ');
     throw new Error(`Invalid or missing environment variables: ${missing}`);

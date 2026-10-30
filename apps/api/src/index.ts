@@ -19,7 +19,11 @@ function models() {
     return { llm: new DemoLlm(), voice: demoVoiceInterpreter };
   }
   if (env.LLM_PROVIDER === 'openai-compatible') {
-    const cfg = { baseUrl: env.LLM_BASE_URL!, apiKey: env.LLM_API_KEY!, model: env.CHAT_MODEL! };
+    const cfg = {
+      baseUrl: (env.LLM_BASE_URL ?? env.LLM_CHAT_URL)!,
+      apiKey: env.LLM_API_KEY!,
+      model: (env.CHAT_MODEL ?? env.LLM_MODEL)!,
+    };
     const voice = { ...cfg, model: env.VOICE_MODEL ?? cfg.model };
     return { llm: new OpenAICompatibleLlm(cfg), voice: new OpenAICompatibleVoiceInterpreter(voice, log) };
   }

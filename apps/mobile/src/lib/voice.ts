@@ -284,19 +284,60 @@ export async function voiceTurn(req: VoiceTurnRequest, useAi: boolean): Promise<
   }
 }
 
-/** In the web preview: Claude via the viewer when allowed, otherwise rules. */
+/** In the web preview or Expo Go: Claude/LLM when available, otherwise rules. */
 async function previewVoiceTurn(req: VoiceTurnRequest): Promise<VoiceTurnResult> {
   const sample = await previewSample();
-  if (!sample) return interpretLocally(req);
-  try {
-    const out = await sample.json(
-      `${VOICE_SYSTEM_PROMPT}\n\nReply with only a JSON object with exactly these keys: understood, wantsTour, say, displayName, agentName, interests, callsAllowed (use null for keys that don't apply).\n\n${voiceUserMessage(req)}`,
-      { modelTier: 'quick' },
-    );
-    const parsed = voiceResultSchema.safeParse(out);
-    return parsed.success ? toVoiceResult(parsed.data) : interpretLocally(req);
-  } catch (err) {
-    noteSampleError(err);
-    return interpretLocally(req);
+  if (sample) {
+    try {
+      const out = await sample.json(
+        `${VOICE_SYSTEM_PROMPT}\n\nReply with only a JSON object with exactly these keys: understood, wantsTour, say, displayName, agentName, interests, callsAllowed (use null for keys that don't apply).\n\n${voiceUserMessage(req)}`,
+        { modelTier: 'quick' },
+      );
+      const parsed = voiceResultSchema.safeParse(out);
+      return parsed.success ? toVoiceResult(parsed.data) : interpretLocally(req);
+    } catch (err) {
+      noteSampleError(err);
+      return interpretLocally(req);
+    }
   }
+
+  if (config.llmChatUrl && config.llmApiKey) {
+    try {
+      const rawUrl = config.llmChatUrl.replace(/\/+$/, '');
+      const url = rawUrl.endsWith('/chat/completions') ? rawUrl : `${rawUrl}/chat/completions`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${config.llmApiKey}`,
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true',
+        },
+        body: JSON.stringify({
+          model: config.llmModel || 'qwen3',
+          temperature: 0,
+          messages: [
+            {
+              role: 'system',
+              content: `${VOICE_SYSTEM_PROMPT}\n\nReply with only a JSON object with exactly these keys: understood (boolean), wantsTour (boolean), say (string), displayName (string or null), agentName (string or null), interests (array of allowed interests, or null), callsAllowed (boolean or null).`,
+            },
+            { role: 'user', content: voiceUserMessage(req) },
+          ],
+        }),
+        signal: AbortSignal.timeout(10_000),
+      });
+
+      if (res.ok) {
+        const body = (await res.json()) as { choices?: { message?: { content?: string | null; reasoning?: string | null } }[] };
+        const msg = body.choices?.[0]?.message;
+        const content = msg?.content || msg?.reasoning || '';
+        const json = content.slice(content.indexOf('{'), content.lastIndexOf('}') + 1);
+        const parsed = voiceResultSchema.safeParse(JSON.parse(json));
+        if (parsed.success) return toVoiceResult(parsed.data);
+      }
+    } catch (err) {
+      console.warn('Voice onboarding LLM turn failed, falling back to local interpreter', err);
+    }
+  }
+
+  return interpretLocally(req);
 }
