@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Raco (web, demo mode)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "web:demo", "-w", "apps/mobile"],
+      "port": 8081
+    }
+  ]
+}
