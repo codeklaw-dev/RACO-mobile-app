@@ -1,4 +1,7 @@
-import Svg, { Circle, ClipPath, Defs, Ellipse, G, Path, Rect } from 'react-native-svg';
+import { Image } from 'react-native';
+import Svg, { Circle, Path, Rect } from 'react-native-svg';
+
+const wordmark = require('../../assets/images/wordmark.png');
 
 /** Stroke icons copied from the design canvas. */
 
@@ -208,23 +211,15 @@ export const PHONE_PATH =
   'M4.5 2.5h3l1.5 4-2 1.5a10 10 0 0 0 5 5l1.5-2 4 1.5v3a2 2 0 0 1-2 2A15 15 0 0 1 2.5 4.5a2 2 0 0 1 2-2z';
 
 /** The RACO AI wordmark, drawn as strokes so it follows the text colour. */
+/** The RACO AI wordmark from racoai.io, tinted to the given colour. */
 export function Logo({ color, width = 150 }: { color: string; width?: number }) {
-  const height = (width * 132) / 762;
   return (
-    <Svg width={width} height={height} viewBox="0 11 762 132" accessibilityRole="image" accessibilityLabel="RACO AI">
-      <Defs>
-        <ClipPath id="logo-clip">
-          <Rect x={0} y={11} width={762} height={132} />
-        </ClipPath>
-      </Defs>
-      <G clipPath="url(#logo-clip)" fill="none" stroke={color} strokeWidth={30} strokeLinejoin="miter">
-        <Path d="M24 158V26H70a33 33 0 0 1 0 66H24M82 92l26 56" />
-        <Path d="M137 158L205 26L274 158M129 128H216" />
-        <Path d="M379.5 47.5A44 51.5 0 1 0 379.5 106.5" strokeWidth={29} />
-        <Ellipse cx={482} cy={77} rx={55.5} ry={51.5} strokeWidth={29} />
-        <Path d="M563 158L631 26L700 158M555 128H642" />
-        <Path d="M738 0V158" />
-      </G>
-    </Svg>
+    <Image
+      source={wordmark}
+      accessibilityRole="image"
+      accessibilityLabel="RACO AI"
+      resizeMode="contain"
+      style={{ width, height: (width * 162) / 900, tintColor: color }}
+    />
   );
 }
