@@ -9,6 +9,7 @@ import { Surface } from '@/components/surface';
 import { ListRow, NavBar, SectionTitle, Segmented } from '@/components/ui';
 import { signOut } from '@/lib/auth';
 import { config } from '@/lib/config';
+import { sendFeedback } from '@/lib/feedback';
 import { listChats, listProjects, listTasks, useFocusData } from '@/lib/data';
 import { useAppLock } from '@/state/app-lock';
 import { usePreferences, type AppearanceChoice } from '@/state/preferences';
@@ -120,6 +121,13 @@ export default function Profile() {
           leading={<PathIcon d={ICONS.chats} color={t.text} size={22} />}
           trailing={<ChevronRightIcon color={t.faint} />}
           onPress={() => void Linking.openURL(`mailto:${config.supportEmail}`)}
+        />
+        <ListRow
+          title="Send feedback"
+          detail="Tell us what to improve"
+          leading={<PathIcon d={ICONS.mail} color={t.text} size={22} />}
+          trailing={<ChevronRightIcon color={t.faint} />}
+          onPress={() => void sendFeedback()}
         />
         <ListRow
           title="Privacy Policy"

@@ -6,6 +6,7 @@ import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native
 import { reportMessage } from '@/lib/api';
 import { saveToLibrary } from '@/lib/data';
 import { notify } from '@/lib/dialog';
+import { sendFeedback } from '@/lib/feedback';
 import { forClipboard, toPlainText } from '@/lib/markdown';
 import { speak, stopSpeaking } from '@/lib/voice';
 import type { UiMessage } from '@/state/use-chat';
@@ -194,7 +195,12 @@ function AssistantMessage({
           {action(speaking ? 'Stop reading' : 'Read aloud', speaking ? ICONS.stopSquare : ICONS.speaker, onReadAloud)}
           {action(saved ? 'Saved to Library' : 'Save to Library', saved ? ICONS.check : ICONS.bookmark, save)}
           {action('More', ICONS.more, () =>
-            sheet({ options: [{ label: 'Report response', icon: ICONS.flag, destructive: true, onPress: report }] }),
+            sheet({
+              options: [
+                { label: 'Send feedback', icon: ICONS.mail, onPress: () => void sendFeedback(conversationId) },
+                { label: 'Report response', icon: ICONS.flag, destructive: true, onPress: report },
+              ],
+            }),
           )}
         </View>
       )}
