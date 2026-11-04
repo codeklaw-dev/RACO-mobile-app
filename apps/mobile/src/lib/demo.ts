@@ -46,7 +46,9 @@ const state = {
     response_style: 'balanced',
     notification_prefs: {},
     onboarded_at: null as string | null,
-    ai_consent_at: null as string | null,
+    // Demo replies are made on the phone and nothing is sent to an AI service,
+    // so there is nothing to consent to (App Review 5.1.2(i) applies to real builds).
+    ai_consent_at: new Date(0).toISOString() as string | null,
   },
   chats: [] as DemoChat[],
   projects: [] as Row[],
@@ -151,6 +153,7 @@ function loadState() {
   try {
     const saved = globalThis.localStorage?.getItem(STORAGE_KEY);
     if (saved) Object.assign(state, JSON.parse(saved));
+    state.profile.ai_consent_at ??= new Date(0).toISOString();
   } catch {
     // Start fresh.
   }
