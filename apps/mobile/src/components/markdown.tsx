@@ -1,8 +1,10 @@
 import * as WebBrowser from 'expo-web-browser';
 import { memo, useMemo, type ReactNode } from 'react';
 import { Platform, ScrollView, Text, View, type TextStyle } from 'react-native';
+import { CARDS_LANG } from '@raco/shared';
 import { parseMarkdown, type Inline } from '@/lib/markdown';
 import { fonts, useTheme, type Palette } from '@/theme';
+import { Cards } from './cards';
 
 const mono = Platform.select({ ios: 'Menlo', default: 'monospace' });
 
@@ -53,6 +55,7 @@ export const Markdown = memo(function Markdown({ text }: { text: string }) {
               </View>
             );
           case 'code':
+            if (b.lang === CARDS_LANG) return <Cards key={i} body={b.text} />;
             return (
               <ScrollView
                 key={i}

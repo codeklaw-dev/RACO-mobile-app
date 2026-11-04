@@ -5,6 +5,20 @@
 
 const REPLIES: { match: RegExp; text: string }[] = [
   {
+    match: /near me|nearby|restaurant|cafe|coffee|kfc|map|directions|where (is|can)/i,
+    text: `Here are a few places close by. These are **sample places** to show how place cards look; real results arrive once a places service is connected.
+
+\`\`\`cards
+[
+  {"type":"place","name":"Corner Fried Chicken","category":"Fast food","address":"12 Market Street","lat":51.5154,"lon":-0.1419,"rating":4.1,"hours":"Open until 11 pm","phone":"+44 20 7946 0001"},
+  {"type":"place","name":"Little Bean Café","category":"Coffee","address":"48 Station Road","lat":51.5142,"lon":-0.1385,"rating":4.6,"hours":"Open until 6 pm"},
+  {"type":"place","name":"Green Bowl Kitchen","category":"Salads","address":"3 Garden Lane","lat":51.5131,"lon":-0.1442,"rating":4.4,"hours":"Opens 11 am"}
+]
+\`\`\`
+
+Tap **Directions** to open one in Maps.`,
+  },
+  {
     match: /flashcard|exam|revise|study/i,
     text: `Happy to help you get ready. Here's a plan that fits the next three days:
 
