@@ -9,6 +9,7 @@ import { notify } from '@/lib/dialog';
 import { sendFeedback } from '@/lib/feedback';
 import { forClipboard, toPlainText } from '@/lib/markdown';
 import { speak, stopSpeaking } from '@/lib/voice';
+import { usePreferences } from '@/state/preferences';
 import type { UiMessage } from '@/state/use-chat';
 import { ThinkingOrb } from '@/vendor/thinking-orbs-native';
 import { fonts, gradient, useTheme } from '@/theme';
@@ -59,6 +60,7 @@ export function MessageList({ messages, conversationId = null, header, footer, o
     void speak(toPlainText(m.content)).then(() => setSpeakingId((id) => (id === m.id ? null : id)));
   };
 
+  const { hue } = usePreferences();
   const fade = (direction: string) => gradient(`linear-gradient(${direction}, ${t.background} 0%, ${t.background}00 100%)`);
 
   return (
@@ -90,9 +92,14 @@ export function MessageList({ messages, conversationId = null, header, footer, o
           )
         }
       />
-      {/* Text fades out under the header and above the composer instead of being cut off. */}
-      <View pointerEvents="none" style={[{ position: 'absolute', top: 0, left: 0, right: 0, height: 18 }, fade('180deg')]} />
-      <View pointerEvents="none" style={[{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 18 }, fade('0deg')]} />
+      {/* Text fades out under the header and above the composer instead of being cut off.
+          The fades are in the page colour, so they're left out over a background hue. */}
+      {hue === 'off' ? (
+        <>
+          <View pointerEvents="none" style={[{ position: 'absolute', top: 0, left: 0, right: 0, height: 18 }, fade('180deg')]} />
+          <View pointerEvents="none" style={[{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 18 }, fade('0deg')]} />
+        </>
+      ) : null}
       {!atBottom ? (
         <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, bottom: 12, alignItems: 'center' }}>
           <IconButton label="Scroll to the latest message" size={38} onPress={() => list.current?.scrollToEnd({ animated: true })}>

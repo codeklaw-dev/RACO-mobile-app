@@ -11,7 +11,7 @@ export type HueChoice = 'off' | HuePalette;
 interface Preferences {
   appearance: AppearanceChoice;
   font: FontSetId;
-  /** The coloured glow behind Home, or off. */
+  /** The live coloured glow behind Home, chats and voice mode, or off. */
   hue: HueChoice;
 }
 
@@ -24,7 +24,7 @@ interface PreferencesState extends Preferences {
 }
 
 const KEY = 'raco.preferences';
-const DEFAULTS: Preferences = { appearance: 'system', font: 'raco', hue: 'off' };
+const DEFAULTS: Preferences = { appearance: 'system', font: 'raco', hue: 'ocean' };
 
 const PreferencesContext = createContext<PreferencesState>({ ...DEFAULTS, ready: true, setAppearance: () => {}, setFont: () => {}, setHue: () => {} });
 
@@ -42,7 +42,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
         setPrefs({
           appearance: saved.appearance && ['system', 'light', 'dark'].includes(saved.appearance) ? saved.appearance : 'system',
           font: saved.font && saved.font in FONT_SETS ? saved.font : 'raco',
-          hue: saved.hue && (HUE_PALETTES as string[]).includes(saved.hue) ? saved.hue : 'off',
+          hue: saved.hue === 'off' || (saved.hue && (HUE_PALETTES as string[]).includes(saved.hue)) ? saved.hue : DEFAULTS.hue,
         });
       })
       .catch(() => {})

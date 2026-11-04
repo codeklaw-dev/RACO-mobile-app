@@ -77,7 +77,7 @@ export default function Profile() {
 
       <ListRow
         title="Background hue"
-        detail={prefs.hue === 'off' ? 'Off · try the colours live' : `${prefs.hue[0]!.toUpperCase()}${prefs.hue.slice(1)} on Home`}
+        detail={prefs.hue === 'off' ? 'Off · try the colours live' : `${prefs.hue[0]!.toUpperCase()}${prefs.hue.slice(1)} · live behind your chats`}
         leading={<PathIcon d={ICONS.sun} color={t.text} size={22} />}
         trailing={<ChevronRightIcon color={t.faint} />}
         onPress={() => router.push('/hue-lab')}

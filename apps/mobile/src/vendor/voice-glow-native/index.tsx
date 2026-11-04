@@ -1,13 +1,15 @@
 /**
  * A React Native take on voice-glow by Jakub Antalik (MIT, see LICENSE):
  * soft coloured light rising from the bottom edge of the screen. Seven lobes
- * fan out from the centre and drift sideways; each one breathes and rises
- * with `level` (0–1), the centre with the lows, the sides with the highs.
+ * flow slowly sideways around a ring, so the colours keep passing through
+ * the centre and fade out at the edges; each one breathes and rises with
+ * `level` (0–1), the centre most, the sides less.
  *
  * Drawn with radial gradients on plain views, so it runs in Expo Go, on the
  * web and on any React Native 0.80+ build, and stays behind the content
  * (pointerEvents none).
  */
+import { useState } from 'react';
 import { useWindowDimensions, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -17,6 +19,11 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 import { voiceLobes, voicePalettes, type HuePalette } from './palettes';
+
+/** One turn of the ring the lobes flow around, in reference px. */
+const SPAN = 36 * voiceLobes.length;
+/** Reference px per second the lobes flow at; faster while active. */
+const FLOW = 9;
 
 export type { HuePalette } from './palettes';
 export const HUE_PALETTES = Object.keys(voicePalettes) as HuePalette[];
@@ -43,7 +50,9 @@ interface Props {
 }
 
 export function HueGlow({ palette, scheme, level, intensity = 1, restLevel = 0.45 }: Props) {
-  const { width } = useWindowDimensions();
+  // Sized to its own box, not the window: on the web the app can sit in a phone frame.
+  const window = useWindowDimensions();
+  const [width, setWidth] = useState(Math.min(window.width, 430));
   const reduced = useReducedMotion();
   const time = useSharedValue(0);
   const idle = useSharedValue(restLevel);
@@ -57,7 +66,10 @@ export function HueGlow({ palette, scheme, level, intensity = 1, restLevel = 0.4
   const strength = (scheme === 'dark' ? 0.9 : 0.7) * intensity;
 
   return (
-    <View pointerEvents="none" style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, overflow: 'hidden' }}>
+    <View
+      pointerEvents="none"
+      onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
+      style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, overflow: 'hidden' }}>
       {/* The wide bloom that tints the lower part of the screen. */}
       <Bloom color={colors[0]!} second={colors[1]!} k={k} strength={strength} time={time} level={level ?? idle} />
       {voiceLobes.map((lobe, i) => (
@@ -71,8 +83,12 @@ function Bloom({ color, second, k, strength, time, level }: { color: string; sec
   const w = 520 * k;
   const h = 820 * k;
   const style = useAnimatedStyle(() => {
-    const breathe = 0.92 + 0.08 * Math.sin(time.value * 0.9);
-    return { opacity: strength * (0.55 + 0.45 * level.value), transform: [{ scaleY: breathe * (0.85 + 0.5 * level.value) }] };
+    const breathe = 0.9 + 0.1 * Math.sin(time.value * 0.9);
+    const sway = Math.sin(time.value * 0.21) * 30 * k;
+    return {
+      opacity: strength * (0.5 + 0.5 * level.value),
+      transform: [{ translateX: sway }, { scaleY: breathe * (0.8 + 0.55 * level.value) }],
+    };
   });
   return (
     <Animated.View
@@ -118,11 +134,16 @@ function LobeView({
     const t = time.value;
     // The centre follows the lows, the sides the mids and highs: a voice ripples outward.
     const bandLevel = level.value * (lobe.band === 0 ? 1 : lobe.band === 1 ? 0.8 : 0.65);
-    const breathe = 0.85 + 0.15 * Math.sin(t * 0.8 + phase);
-    const drift = Math.sin(t * 0.25 + phase) * 10 * k;
+    const breathe = 0.8 + 0.2 * Math.sin(t * 0.8 + phase);
+    // Flow around the ring: wrap to -SPAN/2..SPAN/2 and fade out near the ends, so a
+    // lobe leaving one side is invisible before it comes back in on the other.
+    const travelled = lobe.x + t * FLOW * (1 + level.value);
+    const x = ((((travelled + SPAN / 2) % SPAN) + SPAN) % SPAN) - SPAN / 2;
+    const edge = Math.abs(x) / (SPAN / 2);
+    const presence = 1 - edge * edge * edge;
     return {
-      opacity: strength * (0.6 + 0.4 * bandLevel),
-      transform: [{ translateX: lobe.x * k * (1 + 0.35 * level.value) + drift }, { scaleY: breathe * (0.75 + 0.9 * bandLevel) }],
+      opacity: strength * presence * (0.6 + 0.4 * bandLevel),
+      transform: [{ translateX: x * k * 1.6 * (1 + 0.35 * level.value) }, { scaleY: breathe * (0.75 + 0.9 * bandLevel) }],
     };
   });
   return (

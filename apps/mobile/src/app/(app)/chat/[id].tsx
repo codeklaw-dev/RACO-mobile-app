@@ -1,5 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
+import { useSharedValue, withTiming } from 'react-native-reanimated';
 import { KeyboardAvoidingView, Platform, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconButton } from '@/components/button';
@@ -10,8 +11,10 @@ import { CenteredSpinner, MessageList } from '@/components/message-list';
 import { Welcome } from '@/components/welcome';
 import { takeHandedOffAttachments } from '@/lib/attachments';
 import { getProject } from '@/lib/data';
+import { usePreferences } from '@/state/preferences';
 import { useChat } from '@/state/use-chat';
 import { fonts, useTheme } from '@/theme';
+import { HueGlow } from '@/vendor/voice-glow-native';
 
 /** A conversation. `id` is "new" for a fresh chat, with the first message in `prompt`. */
 export default function Chat() {
@@ -47,8 +50,16 @@ export default function Chat() {
 
   const empty = !chat.loading && chat.messages.length === 0;
 
+  // A quieter glow than Home so replies stay easy to read; it swells while Raco writes.
+  const { hue } = usePreferences();
+  const glowLevel = useSharedValue(0.15);
+  useEffect(() => {
+    glowLevel.set(withTiming(chat.streaming ? 0.7 : 0.15, { duration: chat.streaming ? 400 : 1200 }));
+  }, [chat.streaming, glowLevel]);
+
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: t.background }}>
+      {hue !== 'off' ? <HueGlow palette={hue} scheme={t.scheme} level={glowLevel} intensity={0.6} /> : null}
       <EdgeSwipe current={chat.conversationId}>
         <View style={{ flex: 1, paddingTop: insets.top + 8, paddingBottom: Math.max(insets.bottom, 16) + 4 }}>
           <View style={{ height: 48, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16 }}>

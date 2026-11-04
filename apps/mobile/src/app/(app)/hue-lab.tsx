@@ -24,7 +24,8 @@ const LABELS: Record<HuePalette, string> = {
 
 /**
  * Try the background hues live: pick a palette and an activity, and see the
- * glow move behind real text and buttons. "Use on Home" keeps the choice.
+ * glow move behind real text and buttons. "Use this" applies it to Home,
+ * chats and voice mode.
  */
 export default function HueLab() {
   const t = useTheme();
@@ -126,8 +127,8 @@ export default function HueLab() {
         </View>
 
         <View style={{ flexDirection: 'row', gap: 8, marginTop: 16 }}>
-          <Button kind="glass" label="Turn off on Home" disabled={prefs.hue === 'off'} onPress={() => prefs.setHue('off')} style={{ flex: 1 }} />
-          <Button label={inUse ? 'On Home ✓' : 'Use on Home'} disabled={inUse} onPress={() => prefs.setHue(palette)} style={{ flex: 1 }} />
+          <Button kind="glass" label="Turn off" disabled={prefs.hue === 'off'} onPress={() => prefs.setHue('off')} style={{ flex: 1 }} />
+          <Button label={inUse ? 'In use ✓' : 'Use this'} disabled={inUse} onPress={() => prefs.setHue(palette)} style={{ flex: 1 }} />
         </View>
       </ScrollView>
     </View>
