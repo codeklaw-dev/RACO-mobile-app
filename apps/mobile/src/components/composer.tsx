@@ -17,6 +17,10 @@ interface Props {
   initialText?: string;
 }
 
+const MIN_HEIGHT = 40;
+const MAX_HEIGHT = 140;
+const web = Platform.OS === 'web';
+
 const comingSoon = (what: string) => Alert.alert(`${what} is coming soon`, 'This is on the roadmap for the next release.');
 
 /**
@@ -28,6 +32,9 @@ export function Composer({ onSend, onStop, onVoice, streaming, autoFocus, initia
   const glass = useSurface('glass');
   const [text, setText] = useState(initialText);
   const hasText = text.trim().length > 0;
+  // On the web a textarea doesn't grow by itself: size it to its content so it
+  // never shows a scrollbar until it reaches the maximum height.
+  const [webHeight, setWebHeight] = useState(MIN_HEIGHT);
   // Dictated words are added after whatever was typed before the mic opened.
   const typedBefore = useRef('');
   const dictation = useDictation((spoken) => setText(`${typedBefore.current}${typedBefore.current && spoken ? ' ' : ''}${spoken}`));
@@ -37,6 +44,7 @@ export function Composer({ onSend, onStop, onVoice, streaming, autoFocus, initia
     if (dictation.listening) void dictation.toggle();
     onSend(text.trim());
     setText('');
+    setWebHeight(MIN_HEIGHT);
   };
 
   const dictate = () => {
@@ -77,10 +85,22 @@ export function Composer({ onSend, onStop, onVoice, streaming, autoFocus, initia
         submitBehavior="blurAndSubmit"
         returnKeyType="send"
         onSubmitEditing={submit}
+        // With a keyboard, Enter sends and Shift+Enter starts a new line.
+        onKeyPress={(e) => {
+          const key = e.nativeEvent as { key: string; shiftKey?: boolean };
+          if (web && key.key === 'Enter' && !key.shiftKey) {
+            e.preventDefault();
+            submit();
+          }
+        }}
+        onContentSizeChange={(e) => {
+          if (web) setWebHeight(Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, Math.ceil(e.nativeEvent.contentSize.height))));
+        }}
         style={{
           flex: 1,
-          minHeight: 40,
-          maxHeight: 140,
+          minHeight: MIN_HEIGHT,
+          maxHeight: MAX_HEIGHT,
+          ...(web ? { height: webHeight, overflow: webHeight < MAX_HEIGHT ? 'hidden' : 'scroll' } : null),
           paddingHorizontal: 4,
           paddingTop: 10,
           paddingBottom: 10,
