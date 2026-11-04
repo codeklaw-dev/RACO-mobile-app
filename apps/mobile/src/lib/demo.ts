@@ -40,6 +40,7 @@ const state = {
   email: 'sam@company.com',
   profile: {
     display_name: null as string | null,
+    avatar: null as string | null,
     agent_name: 'Raco',
     interests: [] as string[],
     response_style: 'balanced',

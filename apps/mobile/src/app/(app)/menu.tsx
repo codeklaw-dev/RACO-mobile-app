@@ -1,5 +1,6 @@
 import type { ConversationSummary } from '@raco/shared';
 import { router, useLocalSearchParams, type Href } from 'expo-router';
+import { BlurView } from 'expo-blur';
 import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -7,13 +8,17 @@ import Animated, { Easing, interpolate, useAnimatedStyle, useSharedValue, withSp
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
 import { useActionSheet } from '@/components/action-sheet';
+import { Avatar } from '@/components/avatar';
 import { IconButton } from '@/components/button';
 import { ICONS, Logo, NewChatIcon, PathIcon } from '@/components/icons';
 import { deleteChat, listChats, setChatPinned, useFocusData } from '@/lib/data';
 import { useSession } from '@/state/session';
-import { accent, fonts, useTheme } from '@/theme';
+import { fonts, useTheme } from '@/theme';
 
 const RECENT_LIMIT = 8;
+
+// The panel is frosted glass: the screen behind shows through, blurred.
+const GLASS = { light: 'rgba(235,235,237,0.72)', dark: 'rgba(42,42,43,0.7)' };
 
 // Remembered while the app is open, so sections stay as the user left them.
 const collapsed = { pinned: false, recent: false };
@@ -181,12 +186,14 @@ export default function Menu() {
             {
               width,
               flex: 1,
-              backgroundColor: t.background,
+              backgroundColor: GLASS[t.scheme],
+              overflow: 'hidden',
               paddingTop: insets.top + 8,
               boxShadow: '0 0 40px rgba(0,0,0,0.12)',
             },
             panelStyle,
           ]}>
+          <BlurView intensity={40} tint={t.scheme} style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }} />
           <View
             style={{
               height: 48,
@@ -207,11 +214,15 @@ export default function Menu() {
             {navRow('Library', ICONS.library, '/library')}
             {navRow('Daily tasks', ICONS.sun, '/tasks')}
 
-            {pinned.length ? (
-              <>
-                {section('pinned', 'Pinned')}
-                {open.pinned ? pinned.map(chatRow) : null}
-              </>
+            {section('pinned', 'Pinned')}
+            {open.pinned ? (
+              pinned.length ? (
+                pinned.map(chatRow)
+              ) : chats.data ? (
+                <Text style={{ paddingHorizontal: 12, paddingVertical: 8, fontFamily: fonts.body, fontSize: 15, color: t.faint }}>
+                  Long-press a chat to pin it here
+                </Text>
+              ) : null
             ) : null}
 
             {section('recent', 'Recent')}
@@ -256,7 +267,7 @@ export default function Menu() {
               flexDirection: 'row',
               alignItems: 'center',
               gap: 10,
-              backgroundColor: t.background,
+              backgroundColor: GLASS[t.scheme],
             }}>
             <Pressable
               accessibilityRole="button"
@@ -271,17 +282,7 @@ export default function Menu() {
                 borderRadius: 26,
                 backgroundColor: pressed ? t.tile : 'transparent',
               })}>
-              <View
-                style={{
-                  width: 34,
-                  height: 34,
-                  borderRadius: 17,
-                  backgroundColor: accent,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}>
-                <Text style={{ fontFamily: fonts.bodySemibold, fontSize: 15, color: '#2A2A2B' }}>{name.charAt(0).toUpperCase()}</Text>
-              </View>
+              <Avatar name={name} photo={profile?.avatar} size={34} />
               <Text numberOfLines={1} style={{ flex: 1, fontFamily: fonts.bodyMedium, fontSize: 16, color: t.text }}>
                 {name}
               </Text>

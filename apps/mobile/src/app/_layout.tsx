@@ -1,11 +1,17 @@
-import { InstrumentSans_600SemiBold, InstrumentSans_700Bold } from '@expo-google-fonts/instrument-sans';
 import {
-  Inter_400Regular,
-  Inter_500Medium,
-  Inter_600SemiBold,
-  Inter_700Bold,
-  useFonts,
-} from '@expo-google-fonts/inter';
+  HankenGrotesk_400Regular,
+  HankenGrotesk_500Medium,
+  HankenGrotesk_600SemiBold,
+  HankenGrotesk_700Bold,
+} from '@expo-google-fonts/hanken-grotesk';
+import { InstrumentSans_600SemiBold, InstrumentSans_700Bold } from '@expo-google-fonts/instrument-sans';
+import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, useFonts } from '@expo-google-fonts/inter';
+import {
+  SourceSerif4_400Regular,
+  SourceSerif4_500Medium,
+  SourceSerif4_600SemiBold,
+  SourceSerif4_700Bold,
+} from '@expo-google-fonts/source-serif-4';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -16,6 +22,7 @@ import { ActionSheetProvider } from '@/components/action-sheet';
 import { LockScreen } from '@/components/lock-screen';
 import { AiConsentProvider } from '@/lib/ai-consent';
 import { AppLockProvider, useAppLock } from '@/state/app-lock';
+import { PreferencesProvider, usePreferences } from '@/state/preferences';
 import { SessionProvider, useSession } from '@/state/session';
 import { useTheme } from '@/theme';
 
@@ -31,18 +38,28 @@ export default function RootLayout() {
     Inter_700Bold,
     InstrumentSans_600SemiBold,
     InstrumentSans_700Bold,
+    SourceSerif4_400Regular,
+    SourceSerif4_500Medium,
+    SourceSerif4_600SemiBold,
+    SourceSerif4_700Bold,
+    HankenGrotesk_400Regular,
+    HankenGrotesk_500Medium,
+    HankenGrotesk_600SemiBold,
+    HankenGrotesk_700Bold,
   });
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <SessionProvider>
-          <AppLockProvider>
-            <AiConsentProvider>
-              <ActionSheetProvider>{fontsLoaded ? <Navigator /> : null}</ActionSheetProvider>
-            </AiConsentProvider>
-          </AppLockProvider>
-        </SessionProvider>
+        <PreferencesProvider>
+          <SessionProvider>
+            <AppLockProvider>
+              <AiConsentProvider>
+                <ActionSheetProvider>{fontsLoaded ? <Navigator /> : null}</ActionSheetProvider>
+              </AiConsentProvider>
+            </AppLockProvider>
+          </SessionProvider>
+        </PreferencesProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
@@ -52,10 +69,11 @@ function Navigator() {
   const t = useTheme();
   const { ready, session, profile } = useSession();
   const lock = useAppLock();
+  const prefs = usePreferences();
 
   const signedIn = !!session;
   // Wait for the profile after sign-in so screens can greet by name.
-  const loading = !ready || (signedIn && !profile);
+  const loading = !ready || !prefs.ready || (signedIn && !profile);
 
   useEffect(() => {
     if (!loading) void SplashScreen.hideAsync();

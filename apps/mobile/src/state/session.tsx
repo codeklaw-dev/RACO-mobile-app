@@ -11,6 +11,8 @@ import { supabase } from '@/lib/supabase';
 
 export interface Profile {
   displayName: string | null;
+  /** A small square JPEG as a data URI, or null for the initial. */
+  avatar: string | null;
   agentName: string;
   interests: Interest[];
   responseStyle: ResponseStyle;
@@ -43,7 +45,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
     const { data, error } = await supabase
       .from('profiles')
-      .select('display_name, agent_name, interests, response_style, notification_prefs, onboarded_at, ai_consent_at')
+      .select('display_name, avatar, agent_name, interests, response_style, notification_prefs, onboarded_at, ai_consent_at')
       .eq('user_id', userId)
       .maybeSingle();
     if (error) throw error;
@@ -101,6 +103,7 @@ export function useSession(): SessionState {
 
 interface ProfileRow {
   display_name: string | null;
+  avatar?: string | null;
   agent_name: string;
   interests: string[];
   response_style: ResponseStyle;
@@ -112,6 +115,7 @@ interface ProfileRow {
 function fromRow(row: ProfileRow): Profile {
   return {
     displayName: row.display_name,
+    avatar: row.avatar ?? null,
     agentName: row.agent_name || DEFAULT_AGENT_NAME,
     interests: row.interests as Interest[],
     responseStyle: row.response_style,
@@ -124,6 +128,7 @@ function fromRow(row: ProfileRow): Profile {
 function toRow(p: Partial<Profile>): Partial<ProfileRow> {
   const row: Partial<ProfileRow> = {};
   if (p.displayName !== undefined) row.display_name = p.displayName;
+  if (p.avatar !== undefined) row.avatar = p.avatar;
   if (p.agentName !== undefined) row.agent_name = p.agentName;
   if (p.interests !== undefined) row.interests = p.interests;
   if (p.responseStyle !== undefined) row.response_style = p.responseStyle;

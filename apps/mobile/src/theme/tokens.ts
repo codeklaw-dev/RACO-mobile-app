@@ -5,14 +5,78 @@
 
 export const accent = '#FC7965';
 
-export const fonts = {
-  body: 'Inter_400Regular',
-  bodyMedium: 'Inter_500Medium',
-  bodySemibold: 'Inter_600SemiBold',
-  bodyBold: 'Inter_700Bold',
-  display: 'InstrumentSans_600SemiBold',
-  displayBold: 'InstrumentSans_700Bold',
-} as const;
+export type FontSetId = 'raco' | 'neutral' | 'serif' | 'grotesk';
+
+interface FontSet {
+  body: string;
+  bodyMedium: string;
+  bodySemibold: string;
+  bodyBold: string;
+  display: string;
+  displayBold: string;
+}
+
+/** The type styles a user can choose in Profile. All are open-licensed (OFL). */
+export const FONT_SETS: Record<FontSetId, { label: string; detail: string; set: FontSet }> = {
+  raco: {
+    label: 'Raco',
+    detail: 'Instrument Sans and Inter',
+    set: {
+      body: 'Inter_400Regular',
+      bodyMedium: 'Inter_500Medium',
+      bodySemibold: 'Inter_600SemiBold',
+      bodyBold: 'Inter_700Bold',
+      display: 'InstrumentSans_600SemiBold',
+      displayBold: 'InstrumentSans_700Bold',
+    },
+  },
+  neutral: {
+    label: 'Neutral',
+    detail: 'Clean sans, Inter',
+    set: {
+      body: 'Inter_400Regular',
+      bodyMedium: 'Inter_500Medium',
+      bodySemibold: 'Inter_600SemiBold',
+      bodyBold: 'Inter_700Bold',
+      display: 'Inter_600SemiBold',
+      displayBold: 'Inter_700Bold',
+    },
+  },
+  serif: {
+    label: 'Serif',
+    detail: 'Bookish serif, Source Serif',
+    set: {
+      body: 'SourceSerif4_400Regular',
+      bodyMedium: 'SourceSerif4_500Medium',
+      bodySemibold: 'SourceSerif4_600SemiBold',
+      bodyBold: 'SourceSerif4_700Bold',
+      display: 'SourceSerif4_600SemiBold',
+      displayBold: 'SourceSerif4_700Bold',
+    },
+  },
+  grotesk: {
+    label: 'Grotesk',
+    detail: 'Geometric sans, Hanken Grotesk',
+    set: {
+      body: 'HankenGrotesk_400Regular',
+      bodyMedium: 'HankenGrotesk_500Medium',
+      bodySemibold: 'HankenGrotesk_600SemiBold',
+      bodyBold: 'HankenGrotesk_700Bold',
+      display: 'HankenGrotesk_600SemiBold',
+      displayBold: 'HankenGrotesk_700Bold',
+    },
+  },
+};
+
+/**
+ * The current font families. Screens read these while rendering; changing the
+ * set (see `usePreferences`) re-renders every screen that uses the theme.
+ */
+export const fonts: FontSet = { ...FONT_SETS.raco.set };
+
+export function applyFontSet(id: FontSetId) {
+  Object.assign(fonts, FONT_SETS[id].set);
+}
 
 export interface Palette {
   scheme: 'light' | 'dark';

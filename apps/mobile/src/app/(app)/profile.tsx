@@ -1,17 +1,19 @@
 import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { Linking, ScrollView, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Avatar } from '@/components/avatar';
 import { Button } from '@/components/button';
 import { ChevronRightIcon, ICONS, PathIcon } from '@/components/icons';
 import { Surface } from '@/components/surface';
-import { ListRow, NavBar } from '@/components/ui';
+import { ListRow, NavBar, SectionTitle, Segmented } from '@/components/ui';
 import { signOut } from '@/lib/auth';
 import { config } from '@/lib/config';
 import { listChats, listProjects, listTasks, useFocusData } from '@/lib/data';
 import { useAppLock } from '@/state/app-lock';
+import { usePreferences, type AppearanceChoice } from '@/state/preferences';
 import { useSession } from '@/state/session';
-import { accent, fonts, useTheme } from '@/theme';
+import { FONT_SETS, fonts, useTheme, type FontSetId } from '@/theme';
 
 /** Who you are, what you've done, and the way to Settings. */
 export default function Profile() {
@@ -19,6 +21,7 @@ export default function Profile() {
   const insets = useSafeAreaInsets();
   const { profile, session } = useSession();
   const lock = useAppLock();
+  const prefs = usePreferences();
   const stats = useFocusData(async () => {
     const [chats, projects, tasks] = await Promise.all([listChats(), listProjects(), listTasks()]);
     return { chats: chats.length, projects: projects.length, done: tasks.filter((x) => x.doneAt).length };
@@ -32,9 +35,7 @@ export default function Profile() {
       <NavBar title="Profile" />
 
       <Surface radius={20} style={{ padding: 20, alignItems: 'center', gap: 10 }}>
-        <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: accent, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontFamily: fonts.display, fontSize: 30, color: '#2A2A2B' }}>{name.charAt(0).toUpperCase()}</Text>
-        </View>
+        <Avatar name={name} photo={profile?.avatar} size={72} />
         <View style={{ alignItems: 'center', gap: 2 }}>
           <Text style={{ fontFamily: fonts.display, fontSize: 22, color: t.text }}>{name}</Text>
           {email ? <Text style={{ fontFamily: fonts.body, fontSize: 14, color: t.sub }}>{email}</Text> : null}
@@ -42,6 +43,12 @@ export default function Profile() {
         <View style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 99, backgroundColor: t.tile }}>
           <Text style={{ fontFamily: fonts.bodySemibold, fontSize: 12, color: t.text }}>Free plan</Text>
         </View>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push('/edit-profile')}
+          style={({ pressed }) => ({ paddingHorizontal: 16, height: 34, borderRadius: 17, justifyContent: 'center', backgroundColor: pressed ? t.bubble : t.tile })}>
+          <Text style={{ fontFamily: fonts.bodySemibold, fontSize: 14, color: t.text }}>Edit profile</Text>
+        </Pressable>
         <View style={{ flexDirection: 'row', alignSelf: 'stretch', marginTop: 6 }}>
           {[
             { label: 'Chats', value: stats.data?.chats },
@@ -56,7 +63,50 @@ export default function Profile() {
         </View>
       </Surface>
 
-      <View style={{ gap: 8, marginTop: 4 }}>
+      <SectionTitle>Appearance</SectionTitle>
+      <Segmented<AppearanceChoice>
+        value={prefs.appearance}
+        onChange={prefs.setAppearance}
+        options={[
+          { id: 'system', label: 'System' },
+          { id: 'light', label: 'Light' },
+          { id: 'dark', label: 'Dark' },
+        ]}
+      />
+
+      <SectionTitle>Font</SectionTitle>
+      <View accessibilityRole="radiogroup" style={{ gap: 8 }}>
+        {(Object.keys(FONT_SETS) as FontSetId[]).map((id) => {
+          const f = FONT_SETS[id];
+          const on = prefs.font === id;
+          return (
+            <Pressable
+              key={id}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: on }}
+              accessibilityLabel={`${f.label}, ${f.detail}`}
+              onPress={() => prefs.setFont(id)}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 14,
+                padding: 14,
+                borderRadius: 18,
+                borderWidth: 1.5,
+                borderColor: on ? t.text : 'transparent',
+                backgroundColor: t.tile,
+              }}>
+              <Text style={{ fontFamily: f.set.display, fontSize: 26, color: t.text, width: 40, textAlign: 'center' }}>Aa</Text>
+              <View style={{ flex: 1, gap: 1 }}>
+                <Text style={{ fontFamily: f.set.bodySemibold, fontSize: 16, color: t.text }}>{f.label}</Text>
+                <Text style={{ fontFamily: f.set.body, fontSize: 13, color: t.faint }}>{f.detail}</Text>
+              </View>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      <View style={{ gap: 8, marginTop: 12 }}>
         <ListRow
           title="Settings"
           detail="Profile, replies, privacy and security"
