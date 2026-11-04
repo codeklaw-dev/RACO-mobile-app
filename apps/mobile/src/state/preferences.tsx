@@ -2,12 +2,17 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { Appearance } from 'react-native';
 import { secureStorage } from '@/lib/secure-storage';
 import { applyFontSet, FONT_SETS, type FontSetId } from '@/theme/tokens';
+import { HUE_PALETTES, type HuePalette } from '@/vendor/voice-glow-native';
 
 export type AppearanceChoice = 'system' | 'light' | 'dark';
+
+export type HueChoice = 'off' | HuePalette;
 
 interface Preferences {
   appearance: AppearanceChoice;
   font: FontSetId;
+  /** The coloured glow behind Home, or off. */
+  hue: HueChoice;
 }
 
 interface PreferencesState extends Preferences {
@@ -15,12 +20,13 @@ interface PreferencesState extends Preferences {
   ready: boolean;
   setAppearance(choice: AppearanceChoice): void;
   setFont(id: FontSetId): void;
+  setHue(hue: HueChoice): void;
 }
 
 const KEY = 'raco.preferences';
-const DEFAULTS: Preferences = { appearance: 'system', font: 'raco' };
+const DEFAULTS: Preferences = { appearance: 'system', font: 'raco', hue: 'off' };
 
-const PreferencesContext = createContext<PreferencesState>({ ...DEFAULTS, ready: true, setAppearance: () => {}, setFont: () => {} });
+const PreferencesContext = createContext<PreferencesState>({ ...DEFAULTS, ready: true, setAppearance: () => {}, setFont: () => {}, setHue: () => {} });
 
 /** Light/dark and font choices, kept on this device. */
 export function PreferencesProvider({ children }: { children: ReactNode }) {
@@ -36,6 +42,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
         setPrefs({
           appearance: saved.appearance && ['system', 'light', 'dark'].includes(saved.appearance) ? saved.appearance : 'system',
           font: saved.font && saved.font in FONT_SETS ? saved.font : 'raco',
+          hue: saved.hue && (HUE_PALETTES as string[]).includes(saved.hue) ? saved.hue : 'off',
         });
       })
       .catch(() => {})
@@ -64,6 +71,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
       ready,
       setAppearance: (appearance: AppearanceChoice) => update({ appearance }),
       setFont: (font: FontSetId) => update({ font }),
+      setHue: (hue: HueChoice) => update({ hue }),
     }),
     [prefs, ready, update],
   );

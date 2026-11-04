@@ -8,7 +8,9 @@ import { EdgeSwipe } from '@/components/edge-swipe';
 import { Logo, MenuIcon, NewChatIcon } from '@/components/icons';
 import { Welcome } from '@/components/welcome';
 import { handOffAttachments } from '@/lib/attachments';
+import { usePreferences } from '@/state/preferences';
 import { useTheme } from '@/theme';
+import { HueGlow } from '@/vendor/voice-glow-native';
 
 const openChat = (prompt: string, attachments: Attachment[]) => {
   handOffAttachments(attachments);
@@ -19,9 +21,11 @@ const openChat = (prompt: string, attachments: Attachment[]) => {
 export default function Home() {
   const t = useTheme();
   const insets = useSafeAreaInsets();
+  const { hue } = usePreferences();
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: t.background }}>
+      {hue !== 'off' ? <HueGlow palette={hue} scheme={t.scheme} /> : null}
       <EdgeSwipe>
         <View style={{ flex: 1, paddingTop: insets.top + 8, paddingBottom: Math.max(insets.bottom, 16) + 4, paddingHorizontal: 16 }}>
           <View style={{ height: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>

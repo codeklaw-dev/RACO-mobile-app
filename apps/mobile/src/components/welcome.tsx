@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Text, useWindowDimensions, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
 import { greeting } from '@/lib/greeting';
+import { usePreferences } from '@/state/preferences';
 import { useSession } from '@/state/session';
 import { fonts, gradient, useTheme } from '@/theme';
 
@@ -49,6 +50,8 @@ export function Welcome({ note }: { note?: string }) {
 
 function RollingLine({ style, line: LINE }: { style: object; line: number }) {
   const t = useTheme();
+  // The edge fades are painted in the page colour, which would show as bars over a background hue.
+  const plain = usePreferences().hue === 'off';
   const reduced = useReducedMotion();
   const y = useSharedValue(0);
 
@@ -81,8 +84,8 @@ function RollingLine({ style, line: LINE }: { style: object; line: number }) {
           </Text>
         ))}
       </Animated.View>
-      <View pointerEvents="none" style={[{ position: 'absolute', top: 0, left: 0, right: 0, height: 9 }, fade('top')]} />
-      <View pointerEvents="none" style={[{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 9 }, fade('bottom')]} />
+      {plain ? <View pointerEvents="none" style={[{ position: 'absolute', top: 0, left: 0, right: 0, height: 9 }, fade('top')]} /> : null}
+      {plain ? <View pointerEvents="none" style={[{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 9 }, fade('bottom')]} /> : null}
     </View>
   );
 }
