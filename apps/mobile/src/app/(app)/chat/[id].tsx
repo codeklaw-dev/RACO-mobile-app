@@ -8,6 +8,7 @@ import { EdgeSwipe } from '@/components/edge-swipe';
 import { MenuIcon, NewChatIcon } from '@/components/icons';
 import { CenteredSpinner, MessageList } from '@/components/message-list';
 import { Welcome } from '@/components/welcome';
+import { takeHandedOffAttachments } from '@/lib/attachments';
 import { getProject } from '@/lib/data';
 import { useChat } from '@/state/use-chat';
 import { fonts, useTheme } from '@/theme';
@@ -22,11 +23,15 @@ export default function Chat() {
   const chat = useChat(isNew ? null : id, (newId) => router.setParams({ id: newId, prompt: undefined }), 'text', projectId);
   const sentPrompt = useRef(false);
   const [projectName, setProjectName] = useState<string | null>(null);
+  // Edit on a sent message puts its text back in the composer.
+  const [draft, setDraft] = useState<{ text: string; key: number }>();
 
   useEffect(() => {
-    if (isNew && prompt && !sentPrompt.current) {
+    if (!isNew || sentPrompt.current) return;
+    const attachments = takeHandedOffAttachments();
+    if (prompt || attachments.length) {
       sentPrompt.current = true;
-      void chat.send(prompt);
+      void chat.send(prompt ?? '', attachments);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -77,6 +82,7 @@ export default function Chat() {
             <MessageList
               messages={chat.messages}
               conversationId={chat.conversationId}
+              onEdit={(text) => setDraft({ text, key: Date.now() })}
               footer={
                 chat.error ? (
                   <View accessibilityLiveRegion="polite" style={{ gap: 10, alignItems: 'flex-start' }}>
@@ -108,6 +114,7 @@ export default function Chat() {
             <Composer
               onSend={chat.send}
               onStop={chat.stop}
+              draft={draft}
               streaming={chat.streaming}
               // Replace rather than push: closing voice mode reopens this chat with the new turns.
               onVoice={() => router.replace({ pathname: '/voice-mode', params: chat.conversationId ? { id: chat.conversationId } : {} })}

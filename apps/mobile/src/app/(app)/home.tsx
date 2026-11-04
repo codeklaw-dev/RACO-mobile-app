@@ -1,3 +1,4 @@
+import type { Attachment } from '@raco/shared';
 import { router } from 'expo-router';
 import { KeyboardAvoidingView, Platform, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -6,9 +7,13 @@ import { Composer } from '@/components/composer';
 import { EdgeSwipe } from '@/components/edge-swipe';
 import { Logo, MenuIcon, NewChatIcon } from '@/components/icons';
 import { Welcome } from '@/components/welcome';
+import { handOffAttachments } from '@/lib/attachments';
 import { useTheme } from '@/theme';
 
-const openChat = (prompt: string) => router.push({ pathname: '/chat/[id]', params: { id: 'new', prompt } });
+const openChat = (prompt: string, attachments: Attachment[]) => {
+  handOffAttachments(attachments);
+  router.push({ pathname: '/chat/[id]', params: { id: 'new', prompt } });
+};
 
 /** A blank new chat (design 12b): menu, logo and new chat, the rolling welcome, the prompt box. */
 export default function Home() {

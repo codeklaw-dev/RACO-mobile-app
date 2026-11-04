@@ -3,7 +3,7 @@
  * shared as a clickable preview. Supabase and the RACO API are answered
  * in-memory with sample data. Production builds never set the flag.
  */
-import { demoReply, VOICE_GUIDANCE, type ChatMode, type ChatStreamEvent } from '@raco/shared';
+import { CARDS_GUIDANCE, demoReply, messageWithAttachments, VOICE_GUIDANCE, type Attachment, type ChatMode, type ChatStreamEvent } from '@raco/shared';
 import { noteSampleError, previewSample, streamPreviewReply } from './preview-ai';
 
 export const DEMO = process.env.EXPO_PUBLIC_DEMO === '1';
@@ -244,6 +244,8 @@ function previewInstructions(mode: ChatMode = 'text'): string {
   return [
     `You are ${p.agent_name}, a private AI assistant in the RACO mobile app. You help people write, research, study, plan and think things through.`,
     mode === 'voice' ? VOICE_GUIDANCE : 'The user is on a phone. Format for a small screen: short paragraphs, plain Markdown, no wide tables unless asked.',
+    mode === 'voice' ? '' : CARDS_GUIDANCE,
+    'Attached files appear as fenced blocks starting ```file:<name>. Attached photos appear as ```image:<name> blocks; you cannot see photos in this preview, so say so if asked about one.',
     'Give clear answers with just enough context to be useful.',
     p.display_name ? `The user's first name is ${p.display_name}.` : '',
     p.interests.length ? `They mainly want help with: ${p.interests.join(', ')}.` : '',
@@ -255,16 +257,18 @@ function previewInstructions(mode: ChatMode = 'text'): string {
 
 /** Stands in for the RACO API's streaming chat endpoint. */
 export async function* demoStreamChat(
-  req: { conversationId?: string; projectId?: string; message: string; mode?: ChatMode },
+  req: { conversationId?: string; projectId?: string; message: string; attachments?: Attachment[]; mode?: ChatMode },
   signal?: AbortSignal,
 ): AsyncGenerator<ChatStreamEvent> {
   const now = () => new Date().toISOString();
+  const content = messageWithAttachments(req.message, req.attachments);
+  const photos = req.attachments?.filter((a) => a.kind === 'image').length ?? 0;
   let chat = state.chats.find((c) => c.id === req.conversationId);
   if (!chat) {
-    chat = { id: `demo-${Date.now()}`, title: req.message.slice(0, 60), updated_at: now(), project_id: req.projectId ?? null, messages: [] };
+    chat = { id: `demo-${Date.now()}`, title: (req.message || req.attachments?.[0]?.name || 'New chat').slice(0, 60), updated_at: now(), project_id: req.projectId ?? null, messages: [] };
     state.chats.push(chat);
   }
-  chat.messages.push({ id: `m-${Date.now()}`, role: 'user', content: req.message, created_at: now() });
+  chat.messages.push({ id: `m-${Date.now()}`, role: 'user', content, created_at: now() });
   saveState();
   yield { type: 'conversation', conversationId: chat.id, title: chat.title };
 
@@ -293,7 +297,7 @@ export async function* demoStreamChat(
 
   async function* scripted(): AsyncGenerator<ChatStreamEvent> {
     await new Promise((r) => setTimeout(r, 700));
-    const text = demoReply(req.message);
+    const text = demoReply(content, photos);
     for (const word of text.match(/\S+\s*/g) ?? []) {
       if (signal?.aborted) break;
       sent += word;

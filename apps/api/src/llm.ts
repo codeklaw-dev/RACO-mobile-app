@@ -13,11 +13,22 @@ export type CompletionEvent =
   | { type: 'text'; text: string }
   | { type: 'done'; usage: CompletionUsage; refused: boolean };
 
+export interface CompletionImage {
+  mimeType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif';
+  /** Base64, no data: prefix. */
+  data: string;
+}
+
 export interface CompletionRequest {
   system: string;
   messages: StoredMessage[];
+  /** Photos attached to the newest user message. They are not stored. */
+  images?: CompletionImage[];
   signal?: AbortSignal;
 }
+
+/** Index of the newest user message, which the request's images belong to. */
+export const lastUserIndex = (messages: StoredMessage[]) => messages.findLastIndex((m) => m.role === 'user');
 
 /** The model provider, behind an interface so the route can be tested. */
 export interface Llm {
@@ -46,7 +57,17 @@ export class AnthropicLlm implements Llm {
         // price for the newest messages.
         cache_control: { type: 'ephemeral' },
         system: req.system,
-        messages: req.messages.map((m) => ({ role: m.role, content: m.content })),
+        messages: req.messages.map((m, i) =>
+          req.images?.length && i === lastUserIndex(req.messages)
+            ? {
+                role: m.role,
+                content: [
+                  ...req.images.map((img) => ({ type: 'image' as const, source: { type: 'base64' as const, media_type: img.mimeType, data: img.data } })),
+                  { type: 'text' as const, text: m.content },
+                ],
+              }
+            : { role: m.role, content: m.content },
+        ),
         // If a safety classifier declines, retry server-side on Anthropic's
         // recommended fallback model instead of failing the turn.
         betas: ['server-side-fallback-2026-07-01'],

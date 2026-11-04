@@ -7,7 +7,7 @@ import {
   type VoiceTurnRequest,
   type VoiceTurnResult,
 } from '@raco/shared';
-import type { CompletionEvent, CompletionRequest, Llm } from './llm';
+import { lastUserIndex, type CompletionEvent, type CompletionRequest, type Llm } from './llm';
 import type { VoiceInterpreter } from './voice';
 
 /**
@@ -47,7 +47,20 @@ export class OpenAICompatibleLlm implements Llm {
         model: this.cfg.model,
         stream: true,
         stream_options: { include_usage: true },
-        messages: [{ role: 'system', content: req.system }, ...req.messages],
+        messages: [
+          { role: 'system', content: req.system },
+          ...req.messages.map((m, i) =>
+            req.images?.length && i === lastUserIndex(req.messages)
+              ? {
+                  role: m.role,
+                  content: [
+                    { type: 'text', text: m.content },
+                    ...req.images.map((img) => ({ type: 'image_url', image_url: { url: `data:${img.mimeType};base64,${img.data}` } })),
+                  ],
+                }
+              : m,
+          ),
+        ],
       }),
       signal: req.signal,
     });

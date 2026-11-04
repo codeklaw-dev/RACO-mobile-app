@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseCards } from './cards';
+import { messageWithAttachments, splitAttachments } from './chat';
 import { demoReply } from './demo';
 
 describe('parseCards', () => {
@@ -26,5 +27,23 @@ describe('parseCards', () => {
   it('the demo places reply holds three place cards', () => {
     const body = demoReply('Find a KFC near me').split('```cards\n')[1]!.split('```')[0]!;
     expect(parseCards(body)).toHaveLength(3);
+  });
+});
+
+describe('attachments in messages', () => {
+  it('round-trips text, files and photos', () => {
+    const stored = messageWithAttachments('Summarise these', [
+      { kind: 'file', name: 'notes.md', text: '# Notes\n```js\nx\n```' },
+      { kind: 'image', name: 'IMG_1.jpg', mimeType: 'image/jpeg', data: 'AAAA' },
+    ]);
+    expect(stored).toContain('```file:notes.md');
+    expect(stored).not.toContain('AAAA');
+    expect(splitAttachments(stored)).toEqual({
+      text: 'Summarise these',
+      attachments: [
+        { kind: 'file', name: 'notes.md' },
+        { kind: 'image', name: 'IMG_1.jpg' },
+      ],
+    });
   });
 });

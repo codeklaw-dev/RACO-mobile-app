@@ -159,6 +159,23 @@ describe('POST /v1/chat', () => {
     expect(store.usage[0]).toMatchObject({ workspaceId: 'ws-1', conversationId, outputTokens: 5 });
   });
 
+  it('sends photos to the model for this turn only and keeps files in the chat', async () => {
+    const llm = replying('Nice');
+    const { chat, store } = setup(llm);
+    const res = await chat({
+      message: '',
+      attachments: [
+        { kind: 'image', name: 'IMG_1.jpg', mimeType: 'image/jpeg', data: 'AAAA' },
+        { kind: 'file', name: 'notes.txt', text: 'Buy milk' },
+      ],
+    });
+    expect(res.status).toBe(200);
+    await events(res);
+    expect(llm.requests[0]!.images).toEqual([{ mimeType: 'image/jpeg', data: 'AAAA' }]);
+    expect(store.conversations[0]!.title).toBe('IMG_1.jpg');
+    expect(store.messages[0]!.content).toBe('```image:IMG_1.jpg\n```\n\n```file:notes.txt\nBuy milk\n```');
+  });
+
   it('sends earlier turns as history when continuing a conversation', async () => {
     const llm = replying('Sure.');
     const { chat, store } = setup(llm);

@@ -32,9 +32,10 @@ and the check script, then bump the dates.
 | 5.1.1(i) | Privacy policy in App Store Connect and in the app | Linked on the welcome screen, during onboarding and in Settings. |
 | 5.1.1(ii) | Consent, a way to withdraw it, clear purpose strings | Purpose strings in `app.json`. AI data sharing can be switched off in Settings. |
 | 5.1.1(v) | Account deletion in the app | Settings → Delete account (`DELETE /v1/account`, which cascades all data, including projects, tasks, pinned chats and Library items). |
-| 5.1.2(i) | Name the third-party AI and get explicit permission before sharing data | Before onboarding answers or any chat message leave the phone, a **Before you start** sheet (Agree and continue / Not now) names the provider (`EXPO_PUBLIC_AI_PROVIDER`) and what is sent. The answer is saved as `profiles.ai_consent_at`. Without it the API refuses chat (`consent_required`) and voice onboarding uses the on-device reader. |
+| 5.1.2(i) | Name the third-party AI and get explicit permission before sharing data | Before onboarding answers or any chat message leave the phone, a **Before you start** sheet (Agree and continue / Not now) names the provider (`EXPO_PUBLIC_AI_PROVIDER`) and what is sent, including photos and files the user attaches. The answer is saved as `profiles.ai_consent_at`. Without it the API refuses chat (`consent_required`) and voice onboarding uses the on-device reader. |
 | 5.1.2(ii) | Don't reuse data for another purpose without consent | Chats are not used for training or ads. Asking for new consent is required before that ever changes. |
 | 5.1.1(ii) photos | Profile photo | Profile → Edit profile opens the system photo picker, which shares only the photo the user picks (no library access). The photo is cut to a 256 px square on the phone and saved on the profile row; Remove deletes it, and account deletion removes it. Purpose string `photosPermission`; manifest declares Photos or Videos for app functionality. The camera is not used. |
+| 5.1.1(ii) attachments | Photos and files in chat | The + button opens the system photo picker or document picker; both share only what the user picks, so no permission is asked. Photos are shrunk on the phone and sent to the AI provider with that one message, never stored. Text files are read on the phone and kept in the chat as text. Covered by the consent sheet (5.1.2(i)) and the Photos or Videos and Other User Content manifest entries. |
 | 5.1.1(iii) | Collect only what the app needs | Projects, tasks, pins and Library items are the user's own content, stored for app features only and covered by the manifest's "other user content" entry. |
 | Privacy manifest | `PrivacyInfo.xcprivacy` declares data and Required Reason APIs | `ios.privacyManifests` in `app.json`: no tracking; email, name, user ID, user content and product interaction for app functionality; the UserDefaults, FileTimestamp, SystemBootTime and DiskSpace reasons that React Native needs. Expo modules add their own manifests at build time. |
 
@@ -46,7 +47,7 @@ and the check script, then bump the dates.
 - [ ] A reviewer account with a **password** is set up, and its details are in App Review notes. Email codes can't reach the reviewer.
 - [ ] The review notes describe every feature, explain that there is no user-to-user content, and point to Report response and Contact support.
 - [ ] `EXPO_PUBLIC_AI_PROVIDER` names whoever actually serves replies, and the privacy policy says the same.
-- [ ] The privacy policy covers: the AI provider and what it receives, speech recognition by Apple, the profile photo, how to withdraw consent, retention, and account deletion.
+- [ ] The privacy policy covers: the AI provider and what it receives, speech recognition by Apple, the profile photo, photos and files attached to chats, how to withdraw consent, retention, and account deletion.
 - [ ] App Store Connect privacy labels match the privacy manifest.
 - [ ] The age rating questionnaire is answered honestly for an open-ended AI chat app.
 - [ ] Screenshots show the app in use and suit a 4+ audience (2.3.3, 2.3.8). No "for kids" wording.

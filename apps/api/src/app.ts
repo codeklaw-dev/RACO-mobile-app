@@ -4,6 +4,7 @@ import { streamSSE } from 'hono/streaming';
 import {
   DAILY_MESSAGE_LIMITS,
   chatRequestSchema,
+  messageWithAttachments,
   interpretLocally,
   reportRequestSchema,
   voiceTurnRequestSchema,
@@ -56,7 +57,9 @@ export function createApp(deps: AppDeps) {
     if (!parsed.success) {
       return c.json(errorBody('invalid_request', 'That message could not be sent.'), 400);
     }
-    const { conversationId, projectId, message, mode } = parsed.data;
+    const { conversationId, projectId, message, attachments = [], mode } = parsed.data;
+    const content = messageWithAttachments(message, attachments);
+    const images = attachments.filter((a) => a.kind === 'image');
 
     const ctx = await deps.store.getUserContext(user.id);
     if (!ctx) return c.json(errorBody('unauthorized', 'Your account is not set up yet.'), 403);
@@ -78,11 +81,11 @@ export function createApp(deps: AppDeps) {
       conversation = await deps.store.getConversation(conversationId, user.id);
       if (!conversation) return c.json(errorBody('not_found', 'That chat no longer exists.'), 404);
     } else {
-      conversation = await deps.store.createConversation(ctx, titleFromMessage(message), projectId);
+      conversation = await deps.store.createConversation(ctx, titleFromMessage(message || attachments[0]!.name), projectId);
       if (!conversation) return c.json(errorBody('not_found', 'That project no longer exists.'), 404);
     }
 
-    await deps.store.insertMessage(ctx, conversation.id, 'user', message);
+    await deps.store.insertMessage(ctx, conversation.id, 'user', content);
     const history = await deps.store.recentMessages(conversation.id, HISTORY_LIMIT);
 
     return streamSSE(c, async (sse) => {
@@ -97,6 +100,7 @@ export function createApp(deps: AppDeps) {
         for await (const event of deps.llm.stream({
           system: buildSystemPrompt(ctx, mode),
           messages: history,
+          images: images.map(({ mimeType, data }) => ({ mimeType, data })),
           signal: abort.signal,
         })) {
           if (event.type === 'text') {

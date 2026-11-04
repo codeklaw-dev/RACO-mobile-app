@@ -1,3 +1,5 @@
+import { splitAttachments } from './chat';
+
 /**
  * Sample replies used when no model is connected: the app's demo mode and the
  * API's LLM_PROVIDER=demo. They show how replies look, not what a model says.
@@ -64,6 +66,15 @@ const FALLBACK = `I'm running in demo mode, so my replies are samples rather tha
 Try one of the suggestions on the home screen to see how replies look.`;
 
 /** The sample reply that best matches a message. */
-export function demoReply(message: string): string {
-  return REPLIES.find((r) => r.match.test(message))?.text ?? FALLBACK;
+/** `photos` is how many photos came with the message; attached files are inside it. */
+export function demoReply(message: string, photos = 0): string {
+  const { text, attachments } = splitAttachments(message);
+  const files = attachments.filter((a) => a.kind === 'file').map((a) => a.name);
+  if (photos > 0) {
+    return `I've got your ${photos === 1 ? 'photo' : `${photos} photos`}. This is the demo, so I can't look at ${photos === 1 ? 'it' : 'them'} yet. Once a vision model is connected, I'll describe what's in ${photos === 1 ? 'it' : 'them'}, read any text and answer questions about ${photos === 1 ? 'it' : 'them'}.`;
+  }
+  if (files.length) {
+    return `I've got **${files.join('**, **')}**. This is the demo, so I won't read ${files.length === 1 ? 'it' : 'them'} properly yet. Once a model is connected, I can summarise ${files.length === 1 ? 'it' : 'them'}, pull out key points or answer questions about the contents.`;
+  }
+  return REPLIES.find((r) => r.match.test(text))?.text ?? FALLBACK;
 }
