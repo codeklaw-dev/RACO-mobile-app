@@ -6,11 +6,11 @@ import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native
 import { reportMessage } from '@/lib/api';
 import { saveToLibrary } from '@/lib/data';
 import { notify } from '@/lib/dialog';
-import { toPlainText } from '@/lib/markdown';
+import { forClipboard, toPlainText } from '@/lib/markdown';
 import { speak, stopSpeaking } from '@/lib/voice';
 import type { UiMessage } from '@/state/use-chat';
 import { ThinkingOrb } from '@/vendor/thinking-orbs-native';
-import { fonts, useTheme } from '@/theme';
+import { fonts, gradient, useTheme } from '@/theme';
 import { useActionSheet } from './action-sheet';
 import { IconButton } from './button';
 import { ICONS, PathIcon } from './icons';
@@ -56,6 +56,8 @@ export function MessageList({ messages, conversationId = null, header, footer }:
     void speak(toPlainText(m.content)).then(() => setSpeakingId((id) => (id === m.id ? null : id)));
   };
 
+  const fade = (direction: string) => gradient(`linear-gradient(${direction}, ${t.background} 0%, ${t.background}00 100%)`);
+
   return (
     <View style={{ flex: 1 }}>
       <FlatList
@@ -85,6 +87,9 @@ export function MessageList({ messages, conversationId = null, header, footer }:
           )
         }
       />
+      {/* Text fades out under the header and above the composer instead of being cut off. */}
+      <View pointerEvents="none" style={[{ position: 'absolute', top: 0, left: 0, right: 0, height: 18 }, fade('180deg')]} />
+      <View pointerEvents="none" style={[{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 18 }, fade('0deg')]} />
       {!atBottom ? (
         <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, bottom: 12, alignItems: 'center' }}>
           <IconButton label="Scroll to the latest message" size={38} onPress={() => list.current?.scrollToEnd({ animated: true })}>
@@ -100,7 +105,7 @@ function UserBubble({ message }: { message: UiMessage }) {
   const t = useTheme();
   return (
     <Pressable
-      onLongPress={() => copy(message.content)}
+      onLongPress={() => copy(forClipboard(message.content))}
       accessibilityHint="Long press to copy"
       style={{
         alignSelf: 'flex-end',
@@ -183,7 +188,7 @@ function AssistantMessage({
       {message.pending ? null : (
         <View style={{ flexDirection: 'row', marginLeft: -6 }}>
           {action(copied ? 'Copied' : 'Copy', copied ? ICONS.check : ICONS.copy, () => {
-            copy(message.content);
+            copy(forClipboard(message.content));
             setCopied(true);
           })}
           {action(speaking ? 'Stop reading' : 'Read aloud', speaking ? ICONS.stopSquare : ICONS.speaker, onReadAloud)}

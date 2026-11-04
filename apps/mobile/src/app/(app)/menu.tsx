@@ -18,7 +18,7 @@ import { fonts, useTheme } from '@/theme';
 const RECENT_LIMIT = 8;
 
 // The panel is frosted glass: the screen behind shows through, blurred.
-const GLASS = { light: 'rgba(235,235,237,0.72)', dark: 'rgba(42,42,43,0.7)' };
+const GLASS = { light: 'rgba(235,235,237,0.86)', dark: 'rgba(42,42,43,0.84)' };
 
 // Remembered while the app is open, so sections stay as the user left them.
 const collapsed = { pinned: false, recent: false };
@@ -193,7 +193,7 @@ export default function Menu() {
             },
             panelStyle,
           ]}>
-          <BlurView intensity={40} tint={t.scheme} style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }} />
+          <BlurView intensity={90} tint={t.scheme} style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }} />
           <View
             style={{
               height: 48,

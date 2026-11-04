@@ -5,6 +5,8 @@
  * e.g. a code fence that hasn't closed yet.
  */
 
+import { parseCards } from '@raco/shared';
+
 export type Inline =
   | { type: 'text'; text: string }
   | { type: 'bold'; children: Inline[] }
@@ -172,4 +174,27 @@ export function toPlainText(src: string): string {
 function endSentence(text: string): string {
   const t = text.trim();
   return !t || /[.!?:…]$/.test(t) ? t : `${t}.`;
+}
+
+/**
+ * A reply as it should be pasted elsewhere: Markdown stays, but `cards`
+ * blocks become readable lines instead of JSON.
+ */
+export function forClipboard(src: string): string {
+  return src
+    .replace(/```cards\s*\n([\s\S]*?)(?:```|$)/g, (_, body: string) =>
+      parseCards(body)
+        .map((c) => {
+          switch (c.type) {
+            case 'place':
+              return `- ${[c.name, c.address, c.hours, c.phone].filter(Boolean).join(' · ')}`;
+            case 'link':
+              return `- ${c.title}: ${c.url}`;
+            case 'image':
+              return `- ${c.alt}: ${c.url}`;
+          }
+        })
+        .join('\n'),
+    )
+    .trim();
 }

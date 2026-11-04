@@ -24,6 +24,7 @@ import { AiConsentProvider } from '@/lib/ai-consent';
 import { AppLockProvider, useAppLock } from '@/state/app-lock';
 import { PreferencesProvider, usePreferences } from '@/state/preferences';
 import { SessionProvider, useSession } from '@/state/session';
+import '@/lib/web-styles';
 import { useTheme } from '@/theme';
 
 void SplashScreen.preventAutoHideAsync();

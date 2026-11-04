@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { greeting, humanList } from './greeting';
-import { parseInline, parseMarkdown, toPlainText } from './markdown';
+import { forClipboard, parseInline, parseMarkdown, toPlainText } from './markdown';
 import { SseParser } from './sse';
 
 describe('SseParser', () => {
@@ -75,5 +75,12 @@ describe('greeting', () => {
 describe('toPlainText', () => {
   it('strips formatting so a reply can be spoken', () => {
     expect(toPlainText('# Plan\n\n**Day 1:** read\n\n- one\n- *two*\n\n```js\nx()\n```')).toBe('Plan. Day 1: read. one. two.');
+  });
+});
+
+describe('forClipboard', () => {
+  it('turns cards into readable lines and keeps the text', () => {
+    const reply = 'Here you go.\n\n```cards\n[{"type":"place","name":"Little Bean","address":"48 Station Road"}]\n```\n\nEnjoy.';
+    expect(forClipboard(reply)).toBe('Here you go.\n\n- Little Bean · 48 Station Road\n\nEnjoy.');
   });
 });
