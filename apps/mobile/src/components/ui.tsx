@@ -27,7 +27,9 @@ export function SearchField({ value, onChangeText, placeholder = 'Search', ...re
   const field = useSurface('field');
   return (
     <View style={[surfaceStyle(field), { height: 44, borderRadius: 22, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, gap: 8 }]}>
-      <PathIcon d={ICONS.search} color={t.faint} size={18} strokeWidth={1.8} />
+      <View style={{ flexShrink: 0 }}>
+        <PathIcon d={ICONS.search} color={t.faint} size={18} strokeWidth={1.8} />
+      </View>
       <TextInput
         value={value}
         onChangeText={onChangeText}
@@ -37,7 +39,7 @@ export function SearchField({ value, onChangeText, placeholder = 'Search', ...re
         accessibilityLabel={placeholder}
         returnKeyType="search"
         autoCorrect={false}
-        style={[{ flex: 1, height: 42, backgroundColor: 'transparent', borderWidth: 0, fontFamily: fonts.body, fontSize: 16, color: t.text }, noWebOutline]}
+        style={[{ flex: 1, minWidth: 0, height: 42, backgroundColor: 'transparent', borderWidth: 0, fontFamily: fonts.body, fontSize: 16, color: t.text }, noWebOutline]}
         {...rest}
       />
       {value ? (

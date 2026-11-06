@@ -79,7 +79,7 @@ function RollingLine({ style, line: LINE }: { style: object; line: number }) {
     <View accessible accessibilityLabel={`Let’s ${LINES.join(' Or ')}`} style={{ height: LINE, overflow: 'hidden' }}>
       <Animated.View style={roll}>
         {[...LINES, LINES[0]!].map((line, i) => (
-          <Text key={i} numberOfLines={1} adjustsFontSizeToFit style={[style, { height: LINE, color: t.accentText }]}>
+          <Text key={i} numberOfLines={1} adjustsFontSizeToFit style={[style, { height: LINE, color: t.text }]}>
             {line}
           </Text>
         ))}

@@ -1,10 +1,11 @@
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronRightIcon, ICONS, PathIcon } from '@/components/icons';
 import { EmptyState, ListRow, SearchField, SectionTitle, TextButton, goBack } from '@/components/ui';
-import { listChats, listProjects, listTasks, matches, relativeDate, useFocusData } from '@/lib/data';
+import { relativeDate } from '@/lib/data';
+import { isEmpty, useSearch } from '@/lib/search';
 import { useTheme } from '@/theme';
 
 const LIMIT = 5;
@@ -14,23 +15,8 @@ export default function Search() {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
-  const all = useFocusData(async () => {
-    const [chats, projects, tasks] = await Promise.all([listChats(), listProjects(), listTasks()]);
-    return { chats, projects, tasks };
-  });
-
-  const results = useMemo(() => {
-    if (!all.data || !query.trim()) return null;
-    const projectName = new Map(all.data.projects.map((p) => [p.id, p.name]));
-    return {
-      projectName,
-      chats: all.data.chats.filter((c) => matches(query, c.title)),
-      projects: all.data.projects.filter((p) => matches(query, p.name, p.description)),
-      tasks: all.data.tasks.filter((x) => matches(query, x.title, x.notes)),
-    };
-  }, [all.data, query]);
-
-  const none = results && !results.chats.length && !results.projects.length && !results.tasks.length;
+  const { results } = useSearch(query);
+  const none = results && isEmpty(results);
 
   return (
     <View style={{ flex: 1, backgroundColor: t.background, paddingTop: insets.top + 12 }}>
