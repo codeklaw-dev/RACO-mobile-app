@@ -2,7 +2,7 @@ import type { ConversationSummary } from '@raco/shared';
 import { router, useLocalSearchParams, type Href } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { Easing, interpolate, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,8 +17,10 @@ import { fonts, useTheme } from '@/theme';
 
 const RECENT_LIMIT = 8;
 
-// The panel is frosted glass: the screen behind shows through, blurred.
-const GLASS = { light: 'rgba(235,235,237,0.86)', dark: 'rgba(42,42,43,0.84)' };
+// The whole panel is frosted glass: the screen and its hue show through, blurred.
+const GLASS = { light: 'rgba(240,240,242,0.5)', dark: 'rgba(30,30,32,0.45)' };
+// Browsers blur what's behind with backdrop-filter; phones use BlurView.
+const WEB_FROST = Platform.OS === 'web' ? ({ backdropFilter: 'blur(28px) saturate(1.6)', WebkitBackdropFilter: 'blur(28px) saturate(1.6)' } as object) : null;
 
 // Remembered while the app is open, so sections stay as the user left them.
 const collapsed = { pinned: false, recent: false };
@@ -187,13 +189,16 @@ export default function Menu() {
               width,
               flex: 1,
               backgroundColor: GLASS[t.scheme],
+              ...WEB_FROST,
               overflow: 'hidden',
               paddingTop: insets.top + 8,
               boxShadow: '0 0 40px rgba(0,0,0,0.12)',
             },
             panelStyle,
           ]}>
-          <BlurView intensity={90} tint={t.scheme} style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }} />
+          {Platform.OS !== 'web' ? (
+            <BlurView intensity={80} tint={t.scheme === 'dark' ? 'systemMaterialDark' : 'systemMaterialLight'} style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }} />
+          ) : null}
           <View
             style={{
               height: 48,
@@ -267,7 +272,6 @@ export default function Menu() {
               flexDirection: 'row',
               alignItems: 'center',
               gap: 10,
-              backgroundColor: GLASS[t.scheme],
             }}>
             <Pressable
               accessibilityRole="button"
