@@ -8,7 +8,7 @@ import { ChevronRightIcon, ICONS, PathIcon } from '@/components/icons';
 import { Surface } from '@/components/surface';
 import { ListRow, NavBar, SectionTitle, Segmented } from '@/components/ui';
 import { signOut } from '@/lib/auth';
-import { config } from '@/lib/config';
+import { config, DEMO } from '@/lib/config';
 import { sendFeedback } from '@/lib/feedback';
 import { listChats, listProjects, listTasks, useFocusData } from '@/lib/data';
 import { useAppLock } from '@/state/app-lock';
@@ -145,7 +145,8 @@ export default function Profile() {
         />
       </View>
 
-      <Button kind="glass" label="Sign out" onPress={() => void lock.disable().then(signOut)} style={{ marginTop: 12 }} />
+      {/* Demo builds have no sign-in for now, so there's nothing to sign out of. */}
+      {DEMO ? null : <Button kind="glass" label="Sign out" onPress={() => void lock.disable().then(signOut)} style={{ marginTop: 12 }} />}
     </ScrollView>
   );
 }

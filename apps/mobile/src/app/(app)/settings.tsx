@@ -10,7 +10,7 @@ import { Caption } from '@/components/text';
 import { aiDisclosure, useAiConsent } from '@/lib/ai-consent';
 import { deleteAccount } from '@/lib/api';
 import { signOut } from '@/lib/auth';
-import { config } from '@/lib/config';
+import { config, DEMO } from '@/lib/config';
 import { NavBar } from '@/components/ui';
 import { useAppLock } from '@/state/app-lock';
 import { useSession } from '@/state/session';
@@ -143,7 +143,8 @@ export default function Settings() {
 
       <Caption style={{ marginTop: 12 }}>Account</Caption>
       <Text style={{ fontFamily: fonts.body, fontSize: 15, color: t.sub, marginHorizontal: 4 }}>{session?.user.email}</Text>
-      <Button kind="glass" label="Sign out" onPress={() => void lock.disable().then(signOut)} />
+      {/* Demo builds have no sign-in for now, so there's nothing to sign out of. */}
+      {DEMO ? null : <Button kind="glass" label="Sign out" onPress={() => void lock.disable().then(signOut)} />}
       <Pressable accessibilityRole="button" onPress={confirmDelete} style={{ alignSelf: 'center', padding: 12 }}>
         <Text style={{ fontFamily: fonts.bodySemibold, fontSize: 15, color: t.scheme === 'light' ? '#B42318' : '#FF8A80' }}>Delete account</Text>
       </Pressable>

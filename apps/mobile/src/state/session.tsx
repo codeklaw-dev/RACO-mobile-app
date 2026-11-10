@@ -7,7 +7,10 @@ import {
   type ResponseStyle,
 } from '@raco/shared';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { DEMO } from '@/lib/config';
 import { supabase } from '@/lib/supabase';
+
+const DEMO_GUEST = 'guest@demo.racoai.io';
 
 export interface Profile {
   displayName: string | null;
@@ -58,8 +61,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       .getSession()
       .then(async ({ data }) => {
         if (!active) return;
-        setSession(data.session);
-        await loadProfile(data.session?.user.id).catch(() => {});
+        let current = data.session;
+        // Sign-in is off in demo builds for now: open straight into the app as
+        // a demo guest. Real builds keep the full sign-in flow.
+        if (DEMO && !current) {
+          current = (await supabase.auth.verifyOtp({ email: DEMO_GUEST, token: '123456', type: 'email' })).data.session;
+        }
+        setSession(current);
+        await loadProfile(current?.user.id).catch(() => {});
       })
       .finally(() => active && setReady(true));
 
