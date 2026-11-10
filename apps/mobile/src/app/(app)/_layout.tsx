@@ -17,6 +17,8 @@ export default function AppLayout() {
       <Stack.Screen name="library" />
       <Stack.Screen name="chats" />
       <Stack.Screen name="rename-chat" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="edit-profile" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="hue-lab" />
       <Stack.Screen name="task/[id]" options={{ presentation: 'modal' }} />
       <Stack.Screen name="search" options={{ animation: 'fade' }} />
       <Stack.Screen name="profile" />

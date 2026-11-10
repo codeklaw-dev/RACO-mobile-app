@@ -1,5 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
+import { useSharedValue, withTiming } from 'react-native-reanimated';
 import { KeyboardAvoidingView, Platform, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconButton } from '@/components/button';
@@ -8,9 +9,12 @@ import { EdgeSwipe } from '@/components/edge-swipe';
 import { MenuIcon, NewChatIcon } from '@/components/icons';
 import { CenteredSpinner, MessageList } from '@/components/message-list';
 import { Welcome } from '@/components/welcome';
+import { takeHandedOffAttachments } from '@/lib/attachments';
 import { getProject } from '@/lib/data';
+import { usePreferences } from '@/state/preferences';
 import { useChat } from '@/state/use-chat';
 import { fonts, useTheme } from '@/theme';
+import { HueGlow } from '@/vendor/voice-glow-native';
 
 /** A conversation. `id` is "new" for a fresh chat, with the first message in `prompt`. */
 export default function Chat() {
@@ -22,11 +26,15 @@ export default function Chat() {
   const chat = useChat(isNew ? null : id, (newId) => router.setParams({ id: newId, prompt: undefined }), 'text', projectId);
   const sentPrompt = useRef(false);
   const [projectName, setProjectName] = useState<string | null>(null);
+  // Edit on a sent message puts its text back in the composer.
+  const [draft, setDraft] = useState<{ text: string; key: number }>();
 
   useEffect(() => {
-    if (isNew && prompt && !sentPrompt.current) {
+    if (!isNew || sentPrompt.current) return;
+    const attachments = takeHandedOffAttachments();
+    if (prompt || attachments.length) {
       sentPrompt.current = true;
-      void chat.send(prompt);
+      void chat.send(prompt ?? '', attachments);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -42,8 +50,16 @@ export default function Chat() {
 
   const empty = !chat.loading && chat.messages.length === 0;
 
+  // A quieter glow than Home so replies stay easy to read; it swells while Raco writes.
+  const { hue } = usePreferences();
+  const glowLevel = useSharedValue(0.15);
+  useEffect(() => {
+    glowLevel.set(withTiming(chat.streaming ? 0.7 : 0.15, { duration: chat.streaming ? 400 : 1200 }));
+  }, [chat.streaming, glowLevel]);
+
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: t.background }}>
+      {hue !== 'off' ? <HueGlow palette={hue} scheme={t.scheme} level={glowLevel} intensity={0.6} /> : null}
       <EdgeSwipe current={chat.conversationId}>
         <View style={{ flex: 1, paddingTop: insets.top + 8, paddingBottom: Math.max(insets.bottom, 16) + 4 }}>
           <View style={{ height: 48, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16 }}>
@@ -77,6 +93,7 @@ export default function Chat() {
             <MessageList
               messages={chat.messages}
               conversationId={chat.conversationId}
+              onEdit={(text) => setDraft({ text, key: Date.now() })}
               footer={
                 chat.error ? (
                   <View accessibilityLiveRegion="polite" style={{ gap: 10, alignItems: 'flex-start' }}>
@@ -108,6 +125,7 @@ export default function Chat() {
             <Composer
               onSend={chat.send}
               onStop={chat.stop}
+              draft={draft}
               streaming={chat.streaming}
               // Replace rather than push: closing voice mode reopens this chat with the new turns.
               onVoice={() => router.replace({ pathname: '/voice-mode', params: chat.conversationId ? { id: chat.conversationId } : {} })}

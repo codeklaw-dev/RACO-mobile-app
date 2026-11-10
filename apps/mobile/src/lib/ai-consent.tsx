@@ -18,7 +18,7 @@ import { fonts, useTheme } from '@/theme';
 import { config } from './config';
 
 export function aiDisclosure(agentName: string): string {
-  return `To answer you, ${agentName} sends your messages, voice transcripts and the profile details you give it (your name and interests) to ${config.aiProvider}, an AI service, which generates the replies. You can turn this off at any time in Settings.`;
+  return `To answer you, ${agentName} sends your messages, the photos and files you attach, voice transcripts and the profile details you give it (your name and interests) to ${config.aiProvider}, an AI service, which generates the replies. You can turn this off at any time in Settings.`;
 }
 
 const AskContext = createContext<() => Promise<boolean>>(async () => false);

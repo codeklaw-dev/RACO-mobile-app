@@ -1,4 +1,4 @@
-import { VOICE_GUIDANCE, type ChatMode, type ResponseStyle } from '@raco/shared';
+import { CARDS_GUIDANCE, VOICE_GUIDANCE, type ChatMode, type ResponseStyle } from '@raco/shared';
 import type { UserContext } from './store';
 
 const STYLE_GUIDANCE: Record<ResponseStyle, string> = {
@@ -23,6 +23,8 @@ export function buildSystemPrompt(ctx: UserContext, mode: ChatMode = 'text'): st
     STYLE_GUIDANCE[ctx.responseStyle],
     'If you are unsure about a fact that matters, say so plainly rather than guessing.',
   ];
+  // Cards are visual, so voice replies don't use them.
+  if (mode !== 'voice') lines.push('', CARDS_GUIDANCE);
 
   if (ctx.displayName) {
     lines.push('', `The user's first name is ${ctx.displayName}.`);

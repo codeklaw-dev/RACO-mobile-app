@@ -11,7 +11,7 @@ export class DemoLlm implements Llm {
 
   async *stream(req: CompletionRequest): AsyncIterable<CompletionEvent> {
     const last = req.messages.findLast((m) => m.role === 'user')?.content ?? '';
-    for (const word of demoReply(last).match(/\S+\s*/g) ?? []) {
+    for (const word of demoReply(last, req.images?.length ?? 0).match(/\S+\s*/g) ?? []) {
       if (req.signal?.aborted) break;
       yield { type: 'text', text: word };
       if (this.wordDelayMs) await new Promise((r) => setTimeout(r, this.wordDelayMs));

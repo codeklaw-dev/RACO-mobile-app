@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
-import { Text, View } from 'react-native';
+import { Text, useWindowDimensions, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
 import { greeting } from '@/lib/greeting';
+import { usePreferences } from '@/state/preferences';
 import { useSession } from '@/state/session';
 import { fonts, gradient, useTheme } from '@/theme';
 
@@ -15,7 +16,10 @@ const LINES = [
   'brainstorm ideas with you.',
 ];
 
-const LINE = 42;
+// The type scales with the screen so the longest line fits on one row: 28pt
+// on large phones, down to 22pt on the smallest.
+const size = (width: number) => Math.max(22, Math.min(28, Math.floor(width / 15)));
+const lineHeight = (fontSize: number) => Math.round(fontSize * 1.25);
 const HOLD_MS = 2000;
 const ROLL_MS = 540;
 // The design's easing: a quick, decisive roll.
@@ -28,22 +32,26 @@ const ROLL = Easing.bezier(0.7, 0, 0.2, 1);
 export function Welcome({ note }: { note?: string }) {
   const t = useTheme();
   const { profile } = useSession();
-  const display = { fontFamily: fonts.display, fontSize: 34, lineHeight: LINE, letterSpacing: -0.6 } as const;
+  const fontSize = size(useWindowDimensions().width);
+  const line = lineHeight(fontSize);
+  const display = { fontFamily: fonts.display, fontSize, lineHeight: line, letterSpacing: -0.4 } as const;
 
   return (
-    <View style={{ paddingHorizontal: 8, gap: 6 }}>
-      <Text accessibilityRole="header" style={[display, { color: t.text }]}>
+    <View style={{ paddingHorizontal: 8, gap: 2 }}>
+      <Text accessibilityRole="header" numberOfLines={2} style={[display, { color: t.text }]}>
         {greeting(profile?.displayName)}
       </Text>
       <Text style={[display, { color: t.faint }]}>Let’s</Text>
-      <RollingLine style={display} />
+      <RollingLine style={display} line={line} />
       {note ? <Text style={{ marginTop: 10, fontFamily: fonts.body, fontSize: 15, color: t.faint }}>{note}</Text> : null}
     </View>
   );
 }
 
-function RollingLine({ style }: { style: object }) {
+function RollingLine({ style, line: LINE }: { style: object; line: number }) {
   const t = useTheme();
+  // The edge fades are painted in the page colour, which would show as bars over a background hue.
+  const plain = usePreferences().hue === 'off';
   const reduced = useReducedMotion();
   const y = useSharedValue(0);
 
@@ -61,7 +69,7 @@ function RollingLine({ style }: { style: object }) {
       }
     }, HOLD_MS + ROLL_MS);
     return () => clearInterval(timer);
-  }, [reduced, y]);
+  }, [reduced, y, LINE]);
 
   const roll = useAnimatedStyle(() => ({ transform: [{ translateY: y.value }] }));
   const fade = (to: 'top' | 'bottom') =>
@@ -71,13 +79,13 @@ function RollingLine({ style }: { style: object }) {
     <View accessible accessibilityLabel={`Let’s ${LINES.join(' Or ')}`} style={{ height: LINE, overflow: 'hidden' }}>
       <Animated.View style={roll}>
         {[...LINES, LINES[0]!].map((line, i) => (
-          <Text key={i} numberOfLines={1} style={[style, { height: LINE, color: t.accentText }]}>
+          <Text key={i} numberOfLines={1} adjustsFontSizeToFit style={[style, { height: LINE, color: t.text }]}>
             {line}
           </Text>
         ))}
       </Animated.View>
-      <View pointerEvents="none" style={[{ position: 'absolute', top: 0, left: 0, right: 0, height: 9 }, fade('top')]} />
-      <View pointerEvents="none" style={[{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 9 }, fade('bottom')]} />
+      {plain ? <View pointerEvents="none" style={[{ position: 'absolute', top: 0, left: 0, right: 0, height: 9 }, fade('top')]} /> : null}
+      {plain ? <View pointerEvents="none" style={[{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 9 }, fade('bottom')]} /> : null}
     </View>
   );
 }

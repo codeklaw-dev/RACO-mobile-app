@@ -1,4 +1,4 @@
-import type { ChatMessage, ChatMode } from '@raco/shared';
+import { messageWithAttachments, splitAttachments, type Attachment, type ChatMessage, type ChatMode } from '@raco/shared';
 import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAiConsent } from '@/lib/ai-consent';
@@ -8,6 +8,8 @@ import { supabase } from '@/lib/supabase';
 export interface UiMessage extends ChatMessage {
   /** True while the reply is still streaming in. */
   pending?: boolean;
+  /** What was attached when this message was sent here (photos aren't kept after a reload). */
+  attachments?: Attachment[];
 }
 
 interface ChatState {
@@ -20,7 +22,7 @@ interface ChatState {
   loading: boolean;
   streaming: boolean;
   error: string | null;
-  send(text: string): Promise<void>;
+  send(text: string, attachments?: Attachment[]): Promise<void>;
   /** Sends the last message again after an error. */
   retry(): void;
   stop(): void;
@@ -85,9 +87,9 @@ export function useChat(
   useEffect(() => () => abortRef.current?.abort(), []);
 
   const send = useCallback(
-    async (text: string) => {
+    async (text: string, attachments: Attachment[] = []) => {
       const message = text.trim();
-      if (!message || abortRef.current) return;
+      if ((!message && !attachments.length) || abortRef.current) return;
       if (!(await ensureConsent())) {
         setError('Raco can’t reply until you agree. Send again to see the terms.');
         return;
@@ -98,7 +100,7 @@ export function useChat(
       setError(null);
       setMessages((m) => [
         ...m,
-        { id: nextLocalId(), role: 'user', content: message, createdAt: now },
+        { id: nextLocalId(), role: 'user', content: messageWithAttachments(message, attachments), createdAt: now, attachments },
         { id: replyId, role: 'assistant', content: '', createdAt: now, pending: true },
       ]);
       setStreaming(true);
@@ -110,7 +112,7 @@ export function useChat(
 
       let firstToken = true;
       try {
-        for await (const event of streamChat({ conversationId: conversationId ?? undefined, projectId: conversationId ? undefined : projectId, message, mode }, abort.signal)) {
+        for await (const event of streamChat({ conversationId: conversationId ?? undefined, projectId: conversationId ? undefined : projectId, message, attachments: attachments.length ? attachments : undefined, mode }, abort.signal)) {
           switch (event.type) {
             case 'conversation':
               setTitle(event.title);
@@ -155,7 +157,9 @@ export function useChat(
     if (!lastUser || abortRef.current) return;
     // Drop the failed attempt so the message isn't shown twice.
     setMessages((all) => all.filter((m) => m.id !== lastUser.id));
-    void send(lastUser.content);
+    // Attachments sent here are resent as they were; from an older chat the stored text (with any files) is resent.
+    if (lastUser.attachments) void send(splitAttachments(lastUser.content).text, lastUser.attachments);
+    else void send(lastUser.content);
   }, [messages, send]);
 
   return { conversationId, title, projectId: chatProjectId, messages, loading, streaming, error, send, retry, stop };

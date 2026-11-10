@@ -33,17 +33,24 @@ const manifest = app.ios?.privacyManifests ?? {};
 
 const checks = [
   [
-    'Purpose strings for microphone, speech recognition and Face ID (5.1.1)',
+    'Purpose strings for microphone, speech recognition, Face ID and photos (5.1.1)',
     () =>
       [
         pluginOpt('expo-speech-recognition', 'microphonePermission'),
         pluginOpt('expo-speech-recognition', 'speechRecognitionPermission'),
         pluginOpt('expo-local-authentication', 'faceIDPermission'),
+        pluginOpt('expo-image-picker', 'photosPermission'),
       ].every((s) => typeof s === 'string' && s.length > 20),
   ],
   [
     'Privacy manifest: no tracking, data types declared',
     () => manifest.NSPrivacyTracking === false && (manifest.NSPrivacyCollectedDataTypes ?? []).length > 0,
+  ],
+  [
+    'A profile photo is declared in the privacy manifest (5.1.1)',
+    () =>
+      !/expo-image-picker/.test(mobile) ||
+      (manifest.NSPrivacyCollectedDataTypes ?? []).some((d) => d.NSPrivacyCollectedDataType === 'NSPrivacyCollectedDataTypePhotosorVideos'),
   ],
   [
     'Required Reason APIs declared with reasons',

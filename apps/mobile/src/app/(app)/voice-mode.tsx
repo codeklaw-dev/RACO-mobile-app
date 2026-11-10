@@ -1,16 +1,18 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Text, TextInput, View } from 'react-native';
-import { useSharedValue, withTiming } from 'react-native-reanimated';
+import { useDerivedValue, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconButton } from '@/components/button';
 import { ICONS, PathIcon, SendIcon } from '@/components/icons';
 import { VoiceOrb, type OrbState } from '@/components/voice-orb';
 import { toPlainText } from '@/lib/markdown';
 import { speakQueued, stopSpeaking, useConversationMic } from '@/lib/voice';
+import { usePreferences } from '@/state/preferences';
 import { useSession } from '@/state/session';
 import { useChat } from '@/state/use-chat';
 import { accent, fonts, noWebOutline, useTheme } from '@/theme';
+import { HueGlow } from '@/vendor/voice-glow-native';
 
 /** Splits finished sentences off a reply that's still streaming in. */
 function takeSentences(text: string, from: number): [string, number] {
@@ -103,6 +105,15 @@ export default function VoiceMode() {
 
   // Hands-free: listen whenever Raco is quiet and the mic isn't muted.
   const quiet = !speaking && !chat.streaming && !mic.listening;
+
+  // The background glow follows your voice while listening, and swells while
+  // Raco thinks and talks.
+  const { hue } = usePreferences();
+  const glowBase = useSharedValue(0.25);
+  useEffect(() => {
+    glowBase.set(withTiming(speaking ? 0.75 : chat.streaming ? 0.55 : 0.25, { duration: 500 }));
+  }, [speaking, chat.streaming, glowBase]);
+  const glowLevel = useDerivedValue(() => Math.max(glowBase.value, level.value));
   useEffect(() => {
     if (handsFree && quiet && !muted && !chat.loading) void micRef.current.listen();
   }, [handsFree, quiet, muted, chat.loading]);
@@ -171,6 +182,7 @@ export default function VoiceMode() {
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: t.background }}>
+      {hue !== 'off' ? <HueGlow palette={hue} scheme={t.scheme} level={glowLevel} /> : null}
       <View style={{ flex: 1, paddingTop: insets.top + 8, paddingBottom: Math.max(insets.bottom, 16) + 8 }}>
         <View style={{ height: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 }}>
           <Text style={{ fontFamily: fonts.bodySemibold, fontSize: 16, color: t.text }}>Voice</Text>

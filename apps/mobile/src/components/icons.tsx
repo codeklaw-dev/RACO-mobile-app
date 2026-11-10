@@ -1,4 +1,7 @@
-import Svg, { Circle, ClipPath, Defs, Ellipse, G, Path, Rect } from 'react-native-svg';
+import { Image } from 'react-native';
+import Svg, { Circle, Path, Rect } from 'react-native-svg';
+
+const wordmark = require('../../assets/images/wordmark.png');
 
 /** Stroke icons copied from the design canvas. */
 
@@ -181,6 +184,7 @@ export const ICONS = {
   privacy: 'M10 2.5l6 2.5v4.5c0 4-2.6 6.8-6 8-3.4-1.2-6-4-6-8V5z',
   calendar: 'M3.5 5.5a1 1 0 0 1 1-1h11a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1zM3.5 8.5h13M7 2.5v4M13 2.5v4',
   mail: 'M3 5h14v10H3zM3 5.5l7 5.5 7-5.5',
+  photo: 'M3.5 4.5h13a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1zM2.5 13l4.5-4.5 3.5 3.5 2-2 5 5M13.5 7.5h.01',
   bulb: 'M7.5 14.5h5M8 17h4M10 2.5a5 5 0 0 0-3 9c.6.5 1 1.2 1 2v1h4v-1c0-.8.4-1.5 1-2a5 5 0 0 0-3-9z',
   document: 'M5.5 2.5h6l3.5 3.5v11a.5.5 0 0 1-.5.5h-9a.5.5 0 0 1-.5-.5V3a.5.5 0 0 1 .5-.5zM11.5 2.5V6H15M7.5 10h5M7.5 13h5',
   copy: 'M7 7V4.5A1.5 1.5 0 0 1 8.5 3h7A1.5 1.5 0 0 1 17 4.5v7a1.5 1.5 0 0 1-1.5 1.5H13M4.5 7h7A1.5 1.5 0 0 1 13 8.5v7a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 3 15.5v-7A1.5 1.5 0 0 1 4.5 7z',
@@ -194,6 +198,7 @@ export const ICONS = {
   keyboard: 'M2.5 5.5h15v9h-15zM5.5 8.5h.01M8.5 8.5h.01M11.5 8.5h.01M14.5 8.5h.01M6.5 11.5h7',
   close: 'M5 5l10 10M15 5L5 15',
   pencil: 'M12.5 4.5l3 3L7 16H4v-3z',
+  newChat: 'M9 3.5H4.5a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1V11M14.5 3l2.5 2.5-7 7H7.5V10z',
   bookmark: 'M5.5 3h9a.5.5 0 0 1 .5.5V17l-5-3.5L5 17V3.5a.5.5 0 0 1 .5-.5z',
   library: 'M4 3.5v13M7.5 3.5v13M11 4l3.5 12.5M4 3.5h3.5',
   sun: 'M10 6.5a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7zM10 2v1.5M10 16.5V18M2 10h1.5M16.5 10H18M4.3 4.3l1.1 1.1M14.6 14.6l1.1 1.1M4.3 15.7l1.1-1.1M14.6 5.4l1.1-1.1',
@@ -208,23 +213,15 @@ export const PHONE_PATH =
   'M4.5 2.5h3l1.5 4-2 1.5a10 10 0 0 0 5 5l1.5-2 4 1.5v3a2 2 0 0 1-2 2A15 15 0 0 1 2.5 4.5a2 2 0 0 1 2-2z';
 
 /** The RACO AI wordmark, drawn as strokes so it follows the text colour. */
+/** The RACO AI wordmark from racoai.io, tinted to the given colour. */
 export function Logo({ color, width = 150 }: { color: string; width?: number }) {
-  const height = (width * 132) / 762;
   return (
-    <Svg width={width} height={height} viewBox="0 11 762 132" accessibilityRole="image" accessibilityLabel="RACO AI">
-      <Defs>
-        <ClipPath id="logo-clip">
-          <Rect x={0} y={11} width={762} height={132} />
-        </ClipPath>
-      </Defs>
-      <G clipPath="url(#logo-clip)" fill="none" stroke={color} strokeWidth={30} strokeLinejoin="miter">
-        <Path d="M24 158V26H70a33 33 0 0 1 0 66H24M82 92l26 56" />
-        <Path d="M137 158L205 26L274 158M129 128H216" />
-        <Path d="M379.5 47.5A44 51.5 0 1 0 379.5 106.5" strokeWidth={29} />
-        <Ellipse cx={482} cy={77} rx={55.5} ry={51.5} strokeWidth={29} />
-        <Path d="M563 158L631 26L700 158M555 128H642" />
-        <Path d="M738 0V158" />
-      </G>
-    </Svg>
+    <Image
+      source={wordmark}
+      accessibilityRole="image"
+      accessibilityLabel="RACO AI"
+      resizeMode="contain"
+      style={{ width, height: (width * 162) / 900, tintColor: color }}
+    />
   );
 }
