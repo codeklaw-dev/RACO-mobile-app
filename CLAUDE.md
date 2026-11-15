@@ -35,6 +35,11 @@ The app must always open in Expo Go from the App Store and Play Store.
   versions so there is only one copy of each.
 - Only use native modules that Expo Go includes, or load others lazily with a
   fallback (see `src/lib/voice.ts`). `npm run apple-check` checks the SDK.
+- After every `npm run publish:expo-go`, send the user the live QR code
+  `docs/expo-go-qr.png` (as an image, not just its path) and the channel link
+  from README.md. They follow the `expo-go` channel, so they always open the
+  newest publish; don't hand out single-update links instead. If the SDK
+  changes, update `runtime-version` in the link and regenerate the QR code.
 
 ## Merging
 
