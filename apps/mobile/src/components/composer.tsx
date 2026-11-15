@@ -58,7 +58,7 @@ export function Composer({ onSend, onStop, onVoice, streaming, autoFocus, initia
 
   const submit = () => {
     if (!canSend || streaming) return;
-    if (dictation.listening) void dictation.toggle();
+    if (dictation.listening) dictation.cancel();
     onSend(text.trim(), attachments);
     setText('');
     setAttachments([]);

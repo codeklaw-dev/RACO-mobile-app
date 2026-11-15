@@ -23,7 +23,7 @@ import { VoiceStage, type VoiceStatus } from '@/components/voice-stage';
 import { config } from '@/lib/config';
 import { formatTime, humanList } from '@/lib/greeting';
 import { useAiConsent } from '@/lib/ai-consent';
-import { requestMicrophone, speak, speechRecognitionAvailable, stopSpeaking, useHoldToTalk, voiceTurn } from '@/lib/voice';
+import { requestMicrophone, speak, speechRecognitionAvailable, stopSpeaking, useHoldToTalk, voiceInputAvailable, voiceTurn } from '@/lib/voice';
 import { useAppLock } from '@/state/app-lock';
 import { useOnboarding, type OnboardingDraft } from '@/state/onboarding';
 import { useSession } from '@/state/session';
@@ -185,9 +185,10 @@ export default function VoiceOnboarding() {
   async function begin(byVoice: boolean) {
     // Ask before any answer leaves the phone. If they decline, onboarding
     // still works with the on-device reader.
-    await aiConsent.ensure().catch(() => false);
+    const agreed = await aiConsent.ensure().catch(() => false);
     if (byVoice) {
-      if (!(await requestMicrophone())) setTyping(true);
+      // Expo Go listens through the AI service, so without consent answers are typed.
+      if (!voiceInputAvailable(agreed) || !(await requestMicrophone())) setTyping(true);
     } else {
       setTyping(true);
       setChoseTyping(true);

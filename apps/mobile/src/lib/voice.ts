@@ -7,16 +7,29 @@ import {
   type VoiceTurnRequest,
   type VoiceTurnResult,
 } from '@raco/shared';
+import {
+  createAudioPlayer,
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+  useAudioRecorder,
+  type RecordingOptions,
+} from 'expo-audio';
+import { File } from 'expo-file-system';
 import * as Speech from 'expo-speech';
 import { fetch } from 'expo/fetch';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useAiConsent } from './ai-consent';
 import { config } from './config';
 import { DEMO } from './demo';
 import { noteSampleError, previewSample } from './preview-ai';
 import { supabase } from './supabase';
+import { meterLevel, splitForSpeech, VoiceActivity } from './voice-activity';
+import { discard, SERVER_VOICE, serverVoiceOn, synthesize, transcribe } from './voice-server';
 
 // ---------------------------------------------------------------------------
-// Speaking: the phone's built-in text-to-speech (free, on-device).
+// Speaking: the model server's voice when it's on (see voice-server.ts),
+// otherwise the phone's built-in text-to-speech (free, on-device).
 // ---------------------------------------------------------------------------
 
 let voiceId: string | undefined;
@@ -36,10 +49,9 @@ async function pickVoice() {
   return voiceId;
 }
 
-/** Speaks text aloud; resolves when it finishes or is interrupted. */
-export async function speak(text: string): Promise<void> {
+/** Speaks with the phone's voice; resolves when it finishes or is interrupted. */
+async function speakOnPhone(text: string): Promise<void> {
   const voice = await pickVoice();
-  Speech.stop();
   await new Promise<void>((resolve) => {
     // Some engines never report the end of speech; don't let that stall the flow.
     const fallback = setTimeout(resolve, 1500 + text.split(/\s+/).length * 450);
@@ -51,33 +63,93 @@ export async function speak(text: string): Promise<void> {
   });
 }
 
+// Server clips play one after another. stopSpeaking() starts a new
+// generation, so clips queued before it are dropped instead of played.
+let generation = 0;
+let queue: Promise<void> = Promise.resolve();
+let endClip: (() => void) | null = null;
+
+function playClip(file: File): Promise<void> {
+  return new Promise((resolve) => {
+    const player = createAudioPlayer({ uri: file.uri });
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(guard);
+      sub.remove();
+      if (endClip === finish) endClip = null;
+      player.remove();
+      discard(file);
+      resolve();
+    };
+    // A clip that never reports its end mustn't stall the queue.
+    const guard = setTimeout(finish, 60_000);
+    const sub = player.addListener('playbackStatusUpdate', (s) => {
+      if (s.didJustFinish) finish();
+    });
+    endClip = finish;
+    player.play();
+  });
+}
+
+/** Queues one piece: synthesis starts now, playback waits its turn. Falls back to the phone's voice. */
+function queueOnServer(text: string): Promise<void> {
+  const gen = generation;
+  const audio = synthesize(text).catch(() => null);
+  queue = queue.then(async () => {
+    const file = await audio;
+    if (gen !== generation) return discard(file);
+    if (!file) return speakOnPhone(text);
+    await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => undefined);
+    if (gen !== generation) return discard(file);
+    await playClip(file);
+  });
+  queue = queue.catch(() => undefined);
+  return queue;
+}
+
+/** Speaks text aloud; resolves when it finishes or is interrupted. */
+export async function speak(text: string): Promise<void> {
+  stopSpeaking();
+  if (!serverVoiceOn()) return speakOnPhone(text);
+  await Promise.all(splitForSpeech(text).map(queueOnServer));
+}
+
 export function stopSpeaking() {
+  generation += 1;
+  endClip?.();
   Speech.stop();
 }
 
 /**
- * Adds text to the phone's speech queue without interrupting what's already
+ * Adds text to the speech queue without interrupting what's already
  * playing; `onDone` runs when this piece finishes or is stopped.
  */
 export async function speakQueued(text: string, onDone: () => void): Promise<void> {
-  const voice = await pickVoice();
   let finished = false;
   const done = () => {
     if (finished) return;
     finished = true;
     onDone();
   };
+  if (serverVoiceOn()) {
+    void queueOnServer(text).then(done);
+    return;
+  }
+  const voice = await pickVoice();
   Speech.speak(text, { voice, rate: 1.0, onDone: done, onStopped: done, onError: done });
 }
 
 // ---------------------------------------------------------------------------
-// Listening: the phone's built-in speech recognition, push-to-talk.
+// Listening: the model server's speech-to-text when it's on, otherwise the
+// phone's built-in speech recognition.
 // ---------------------------------------------------------------------------
 
 type Recognizer = (typeof import('expo-speech-recognition'))['ExpoSpeechRecognitionModule'];
 
 // Loaded lazily: the native module isn't in Expo Go, and importing it there
-// throws. Without it, voice input is unavailable and the app offers typing.
+// throws. Without it (and without server voice), the app offers typing.
 const recognizer: Recognizer | null = (() => {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -87,7 +159,7 @@ const recognizer: Recognizer | null = (() => {
   }
 })();
 
-export function speechRecognitionAvailable(): boolean {
+function phoneRecognitionAvailable(): boolean {
   try {
     return recognizer?.isRecognitionAvailable() ?? false;
   } catch {
@@ -95,13 +167,91 @@ export function speechRecognitionAvailable(): boolean {
   }
 }
 
+/** Whether voice input can work in this build (server voice still needs AI consent). */
+export function speechRecognitionAvailable(): boolean {
+  return SERVER_VOICE || phoneRecognitionAvailable();
+}
+
+/** Whether voice input works right now, given the user's AI consent. */
+export function voiceInputAvailable(consented: boolean): boolean {
+  return (SERVER_VOICE && consented) || phoneRecognitionAvailable();
+}
+
 export async function requestMicrophone(): Promise<boolean> {
   try {
-    const res = await recognizer?.requestPermissionsAsync();
+    const res = SERVER_VOICE ? await requestRecordingPermissionsAsync() : await recognizer?.requestPermissionsAsync();
     return res?.granted ?? false;
   } catch {
     return false;
   }
+}
+
+const RECORDING: RecordingOptions = { ...RecordingPresets.HIGH_QUALITY, numberOfChannels: 1, isMeteringEnabled: true };
+
+/**
+ * Records for the server's speech-to-text. `begin` opens the mic (with
+ * `onLevel` called every 100 ms with the level in dB), `finish` stops and
+ * returns the transcript, `cancel` throws the recording away.
+ */
+function useServerRecorder() {
+  const recorder = useAudioRecorder(RECORDING);
+  const active = useRef(false);
+  const meter = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const stopMeter = () => {
+    if (meter.current) clearInterval(meter.current);
+    meter.current = null;
+  };
+  useEffect(() => stopMeter, []);
+
+  const begin = useCallback(
+    async (onLevel?: (db: number | undefined) => void): Promise<boolean> => {
+      if (active.current) return true;
+      if (!(await requestMicrophone())) return false;
+      stopSpeaking();
+      try {
+        await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+        await recorder.prepareToRecordAsync();
+        recorder.record();
+      } catch {
+        return false;
+      }
+      active.current = true;
+      if (onLevel) meter.current = setInterval(() => onLevel(recorder.getStatus().metering), 100);
+      return true;
+    },
+    [recorder],
+  );
+
+  const end = useCallback(async (): Promise<string | null> => {
+    if (!active.current) return null;
+    active.current = false;
+    stopMeter();
+    try {
+      await recorder.stop();
+    } finally {
+      // Back to playback mode, so replies come out of the speaker.
+      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => undefined);
+    }
+    return recorder.uri;
+  }, [recorder]);
+
+  const finish = useCallback(async (): Promise<string> => {
+    const uri = await end();
+    if (!uri) return '';
+    try {
+      return await transcribe(uri);
+    } finally {
+      discard(new File(uri));
+    }
+  }, [end]);
+
+  const cancel = useCallback(async () => {
+    const uri = await end().catch(() => null);
+    if (uri) discard(new File(uri));
+  }, [end]);
+
+  return { begin, finish, cancel };
 }
 
 /**
@@ -111,14 +261,18 @@ export async function requestMicrophone(): Promise<boolean> {
  * denied, no recogniser), so the screen can switch to typing.
  */
 export function useHoldToTalk(onFinal: (transcript: string) => void) {
+  const { consented } = useAiConsent();
+  const server = SERVER_VOICE && consented;
   const [listening, setListening] = useState(false);
   const [partial, setPartial] = useState('');
-  const [unavailable, setUnavailable] = useState(!recognizer);
+  const [unavailable, setUnavailable] = useState(!recognizer && !SERVER_VOICE);
   const latest = useRef('');
+  const held = useRef(false);
   const onFinalRef = useRef(onFinal);
   useEffect(() => {
     onFinalRef.current = onFinal;
   }, [onFinal]);
+  const rec = useServerRecorder();
 
   useEffect(() => {
     if (!recognizer) return;
@@ -147,27 +301,61 @@ export function useHoldToTalk(onFinal: (transcript: string) => void) {
     return () => subs.forEach((s) => s.remove());
   }, []);
 
+  const finishServer = useCallback(async () => {
+    setPartial('…');
+    try {
+      const t = await rec.finish();
+      if (t) onFinalRef.current(t);
+    } catch {
+      // The server couldn't be reached: switch to typing.
+      setUnavailable(true);
+    } finally {
+      setListening(false);
+      setPartial('');
+    }
+  }, [rec]);
+
   const start = useCallback(() => {
     stopSpeaking();
     latest.current = '';
-    recognizer?.start({ lang: 'en-US', interimResults: true, continuous: true, addsPunctuation: true });
-  }, []);
+    if (server) {
+      held.current = true;
+      void rec.begin().then((ok) => {
+        if (!ok) return setUnavailable(true);
+        // Released before the mic opened: nothing to keep.
+        if (!held.current) return void rec.cancel();
+        setListening(true);
+      });
+      return;
+    }
+    if (!recognizer) return setUnavailable(true);
+    recognizer.start({ lang: 'en-US', interimResults: true, continuous: true, addsPunctuation: true });
+  }, [server, rec]);
 
-  const stop = useCallback(() => recognizer?.stop(), []);
+  const stop = useCallback(() => {
+    if (!server) return recognizer?.stop();
+    held.current = false;
+    void finishServer();
+  }, [server, finishServer]);
 
   return { listening, partial, unavailable, start, stop };
 }
 
 /**
  * Dictation into a text field: `toggle` starts and stops listening, and
- * `onText` receives the running transcript. Unavailable in Expo Go.
+ * `onText` receives the transcript (live with the phone's recogniser, at the
+ * end with the server). `cancel` stops without adding anything.
  */
 export function useDictation(onText: (transcript: string) => void) {
+  const { ensure } = useAiConsent();
   const [listening, setListening] = useState(false);
+  const viaServer = useRef(false);
+  const busy = useRef(false);
   const onTextRef = useRef(onText);
   useEffect(() => {
     onTextRef.current = onText;
   }, [onText]);
+  const rec = useServerRecorder();
 
   useEffect(() => {
     if (!recognizer) return;
@@ -181,25 +369,57 @@ export function useDictation(onText: (transcript: string) => void) {
   }, []);
 
   const toggle = useCallback(async () => {
-    if (!recognizer) return;
+    if (busy.current) return;
     if (listening) {
-      recognizer.stop();
+      if (!viaServer.current) return recognizer?.stop();
+      // Stays "listening" until the words are in the field.
+      busy.current = true;
+      try {
+        const t = await rec.finish();
+        if (t) onTextRef.current(t);
+      } catch {
+        // Nothing usable came back; the field keeps what was typed.
+      } finally {
+        busy.current = false;
+        setListening(false);
+      }
       return;
     }
-    if (!(await requestMicrophone())) return;
+    // With server voice, ask for AI consent first; without it, the phone's recogniser (if any) is used.
+    if (SERVER_VOICE && (await ensure().catch(() => false))) {
+      busy.current = true;
+      const ok = await rec.begin();
+      busy.current = false;
+      viaServer.current = ok;
+      if (ok) setListening(true);
+      return;
+    }
+    if (!recognizer || !(await recognizer.requestPermissionsAsync().then((r) => r.granted, () => false))) return;
+    viaServer.current = false;
     stopSpeaking();
     recognizer.start({ lang: 'en-US', interimResults: true, continuous: true, addsPunctuation: true });
-  }, [listening]);
+  }, [listening, ensure, rec]);
 
-  return { available: !!recognizer && speechRecognitionAvailable(), listening, toggle };
+  const cancel = useCallback(() => {
+    if (viaServer.current) {
+      void rec.cancel();
+      setListening(false);
+    } else {
+      recognizer?.abort();
+    }
+  }, [rec]);
+
+  return { available: SERVER_VOICE || (!!recognizer && phoneRecognitionAvailable()), listening, toggle, cancel };
 }
 
 /**
  * Hands-free listening for voice mode: `listen()` opens the mic and stops on
  * its own when the user pauses; `onFinal` gets what they said and `onVolume`
- * the input level (0-1) for the orb. Unavailable in Expo Go.
+ * the input level (0-1) for the orb.
  */
 export function useConversationMic({ onFinal, onVolume }: { onFinal: (text: string) => void; onVolume?: (level: number) => void }) {
+  const { consented } = useAiConsent();
+  const server = SERVER_VOICE && consented;
   const [listening, setListening] = useState(false);
   const [partial, setPartial] = useState('');
   const latest = useRef('');
@@ -207,6 +427,9 @@ export function useConversationMic({ onFinal, onVolume }: { onFinal: (text: stri
   useEffect(() => {
     handlers.current = { onFinal, onVolume };
   }, [onFinal, onVolume]);
+  const rec = useServerRecorder();
+  // Bumped by cancel(), so a transcript that arrives afterwards is dropped.
+  const turn = useRef(0);
 
   useEffect(() => {
     if (!recognizer) return;
@@ -232,8 +455,52 @@ export function useConversationMic({ onFinal, onVolume }: { onFinal: (text: stri
 
   // Between start() and the 'start' event `listening` is still false; this stops a second start.
   const starting = useRef(false);
+
+  const listenOnServer = useCallback(async () => {
+    const mine = ++turn.current;
+    const activity = new VoiceActivity(Date.now());
+    let decided = false;
+    const ended = async (outcome: 'done' | 'nothing') => {
+      handlers.current.onVolume?.(0);
+      if (outcome === 'nothing') {
+        await rec.cancel();
+        if (mine === turn.current) setListening(false);
+        return;
+      }
+      setPartial('…');
+      try {
+        const text = await rec.finish();
+        // Sent before `listening` drops, so voice mode doesn't reopen the mic in between.
+        if (text && mine === turn.current) handlers.current.onFinal(text);
+      } catch {
+        // The server couldn't be reached; voice mode simply listens again.
+      } finally {
+        if (mine === turn.current) {
+          setListening(false);
+          setPartial('');
+        }
+      }
+    };
+    const ok = await rec.begin((db) => {
+      handlers.current.onVolume?.(meterLevel(db));
+      if (decided) return;
+      const step = activity.push(db, Date.now());
+      if (step === 'continue') return;
+      decided = true;
+      void ended(step);
+    });
+    if (ok && mine === turn.current) setListening(true);
+  }, [rec]);
+
   const listen = useCallback(async () => {
-    if (!recognizer || listening || starting.current) return;
+    if (listening || starting.current) return;
+    if (server) {
+      starting.current = true;
+      await listenOnServer();
+      starting.current = false;
+      return;
+    }
+    if (!recognizer) return;
     starting.current = true;
     if (!(await requestMicrophone())) {
       starting.current = false;
@@ -248,14 +515,22 @@ export function useConversationMic({ onFinal, onVolume }: { onFinal: (text: stri
       addsPunctuation: true,
       volumeChangeEventOptions: { enabled: true, intervalMillis: 100 },
     });
-  }, [listening]);
+  }, [listening, server, listenOnServer]);
 
   const cancel = useCallback(() => {
     latest.current = '';
+    turn.current += 1;
+    if (server) {
+      void rec.cancel();
+      setListening(false);
+      setPartial('');
+      handlers.current.onVolume?.(0);
+      return;
+    }
     recognizer?.abort();
-  }, []);
+  }, [server, rec]);
 
-  return { available: !!recognizer && speechRecognitionAvailable(), listening, partial, listen, cancel };
+  return { available: server || (!!recognizer && phoneRecognitionAvailable()), listening, partial, listen, cancel };
 }
 
 // ---------------------------------------------------------------------------

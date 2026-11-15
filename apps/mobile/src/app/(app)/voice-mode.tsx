@@ -6,8 +6,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconButton } from '@/components/button';
 import { ICONS, PathIcon, SendIcon } from '@/components/icons';
 import { VoiceOrb, type OrbState } from '@/components/voice-orb';
+import { useAiConsent } from '@/lib/ai-consent';
 import { toPlainText } from '@/lib/markdown';
 import { speakQueued, stopSpeaking, useConversationMic } from '@/lib/voice';
+import { SERVER_VOICE } from '@/lib/voice-server';
 import { usePreferences } from '@/state/preferences';
 import { useSession } from '@/state/session';
 import { useChat } from '@/state/use-chat';
@@ -26,8 +28,9 @@ function takeSentences(text: string, from: number): [string, number] {
 /**
  * Voice mode: a hands-free conversation. Raco listens until you pause,
  * answers out loud sentence by sentence while the reply streams in, then
- * listens again. Tap the orb to interrupt. In Expo Go, where speech
- * recognition isn't available, you type and Raco still answers out loud.
+ * listens again. Tap the orb to interrupt. In Expo Go the AI service does
+ * the listening and talking, once the user agrees to it; without that, or
+ * without speech recognition, you type and Raco still answers out loud.
  */
 export default function VoiceMode() {
   const t = useTheme();
@@ -36,6 +39,12 @@ export default function VoiceMode() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const chat = useChat(id ?? null, undefined, 'voice');
   const agent = profile?.agentName ?? 'Raco';
+  const aiConsent = useAiConsent();
+  // Expo Go hears through the AI service: ask once when voice mode opens.
+  useEffect(() => {
+    if (SERVER_VOICE) void aiConsent.ensure().catch(() => false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const level = useSharedValue(0);
   const [muted, setMuted] = useState(false);
@@ -253,9 +262,18 @@ export default function VoiceMode() {
                 <PathIcon d={ICONS.close} color={t.text} size={18} strokeWidth={2} />
               </IconButton>
             </View>
-            <Text style={{ textAlign: 'center', fontFamily: fonts.body, fontSize: 13, color: t.faint }}>
-              Talking needs the full Raco app. In Expo Go, type and {agent} answers out loud.
-            </Text>
+            {SERVER_VOICE ? (
+              <Text
+                accessibilityRole="button"
+                onPress={() => void aiConsent.ensure().catch(() => false)}
+                style={{ textAlign: 'center', fontFamily: fonts.body, fontSize: 13, color: t.faint }}>
+                To talk instead of typing, <Text style={{ color: t.text, textDecorationLine: 'underline' }}>allow {agent}’s AI service</Text>.
+              </Text>
+            ) : (
+              <Text style={{ textAlign: 'center', fontFamily: fonts.body, fontSize: 13, color: t.faint }}>
+                Talking needs the full Raco app. In Expo Go, type and {agent} answers out loud.
+              </Text>
+            )}
           </View>
         )}
       </View>

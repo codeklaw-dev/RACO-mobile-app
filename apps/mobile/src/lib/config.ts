@@ -27,4 +27,8 @@ export const config = {
   llmChatUrl: process.env.EXPO_PUBLIC_LLM_CHAT_URL ?? process.env.LLM_CHAT_URL ?? '',
   llmModel: process.env.EXPO_PUBLIC_LLM_MODEL ?? process.env.LLM_MODEL ?? 'qwen3',
   llmApiKey: process.env.EXPO_PUBLIC_LLM_API_KEY ?? process.env.LLM_API_KEY ?? '',
+  /** Speech models on the same server: speech-to-text for listening, text-to-speech for talking. */
+  sttModel: process.env.EXPO_PUBLIC_STT_MODEL ?? 'qwen3-asr-0.6b',
+  ttsModel: process.env.EXPO_PUBLIC_TTS_MODEL ?? 'qwen3-tts-0.6b-base',
+  ttsVoice: process.env.EXPO_PUBLIC_TTS_VOICE ?? 'default',
 };

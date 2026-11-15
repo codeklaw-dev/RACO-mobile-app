@@ -8,7 +8,7 @@
  * the same everywhere (web previews block browser dialogs).
  */
 import * as WebBrowser from 'expo-web-browser';
-import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,9 +16,10 @@ import { Button } from '@/components/button';
 import { useSession } from '@/state/session';
 import { fonts, useTheme } from '@/theme';
 import { config } from './config';
+import { SERVER_VOICE, setServerVoiceConsent } from './voice-server';
 
 export function aiDisclosure(agentName: string): string {
-  return `To answer you, ${agentName} sends your messages, the photos and files you attach, voice transcripts and the profile details you give it (your name and interests) to ${config.aiProvider}, an AI service, which generates the replies. You can turn this off at any time in Settings.`;
+  return `To answer you, ${agentName} sends your messages, the photos and files you attach, ${SERVER_VOICE ? 'recordings of what you say by voice' : 'voice transcripts'} and the profile details you give it (your name and interests) to ${config.aiProvider}, an AI service, which generates the replies. You can turn this off at any time in Settings.`;
 }
 
 const AskContext = createContext<() => Promise<boolean>>(async () => false);
@@ -26,6 +27,9 @@ const AskContext = createContext<() => Promise<boolean>>(async () => false);
 /** Hosts the consent sheet; wrap the app in it, inside SessionProvider. */
 export function AiConsentProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
+  // Voice only goes to the model server once the user has agreed.
+  const { profile } = useSession();
+  useEffect(() => setServerVoiceConsent(Boolean(profile?.aiConsentAt)), [profile?.aiConsentAt]);
   const resolver = useRef<((ok: boolean) => void) | null>(null);
 
   const ask = useCallback(

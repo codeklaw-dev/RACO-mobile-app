@@ -131,7 +131,7 @@
       [
         "expo-speech-recognition",
         {
-          "microphonePermission": "Raco listens only while you hold the talk button, so you can answer by voice.",
+          "microphonePermission": "Raco listens only while you talk to it: while you hold the talk button, dictate a message or use voice mode.",
           "speechRecognitionPermission": "Raco turns what you say into text so it can understand your answers."
         }
       ],
@@ -155,7 +155,13 @@
       ],
       "expo-font",
       "expo-image",
-      "expo-status-bar"
+      "expo-status-bar",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Raco listens only while you talk to it: while you hold the talk button, dictate a message or use voice mode."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

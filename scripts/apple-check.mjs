@@ -37,6 +37,8 @@ const checks = [
     () =>
       [
         pluginOpt('expo-speech-recognition', 'microphonePermission'),
+        // expo-audio records for server voice; its default text would replace ours.
+        pluginOpt('expo-audio', 'microphonePermission'),
         pluginOpt('expo-speech-recognition', 'speechRecognitionPermission'),
         pluginOpt('expo-local-authentication', 'faceIDPermission'),
         pluginOpt('expo-image-picker', 'photosPermission'),
