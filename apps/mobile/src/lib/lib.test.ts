@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { greeting, humanList } from './greeting';
 import { forClipboard, parseInline, parseMarkdown, toPlainText } from './markdown';
 import { SseParser } from './sse';
+import { ThinkFilter, withoutThinking } from './think-filter';
 import { meterLevel, splitForSpeech, VoiceActivity } from './voice-activity';
 
 describe('SseParser', () => {
@@ -91,7 +92,7 @@ describe('VoiceActivity', () => {
 
   it('ends after speech and then a pause', () => {
     const va = new VoiceActivity(0);
-    expect(feed(va, [[-60, 100], [-20, 500], [-25, 900], [-55, 1000], [-55, 2000], [-55, 2300]])).toEqual([
+    expect(feed(va, [[-60, 100], [-20, 500], [-25, 900], [-55, 1000], [-55, 1900], [-55, 2000]])).toEqual([
       'continue',
       'continue',
       'continue',
@@ -103,7 +104,19 @@ describe('VoiceActivity', () => {
 
   it('keeps listening through short gaps between words', () => {
     const va = new VoiceActivity(0);
-    expect(feed(va, [[-20, 100], [-55, 200], [-20, 1200], [-55, 1300], [-55, 2500]])).toEqual(['continue', 'continue', 'continue', 'continue', 'continue']);
+    expect(feed(va, [[-20, 100], [-55, 200], [-20, 1100], [-55, 1300], [-55, 2200]])).toEqual(['continue', 'continue', 'continue', 'continue', 'continue']);
+  });
+
+  it('ends in a noisy room once speech drops back to the noise', () => {
+    const va = new VoiceActivity(0);
+    expect(feed(va, [[-40, 100], [-38, 200], [-18, 500], [-40, 700], [-39, 1200], [-40, 1800]])).toEqual([
+      'continue',
+      'continue',
+      'continue',
+      'continue',
+      'continue',
+      'done',
+    ]);
   });
 
   it('gives up when nothing is said', () => {
@@ -146,5 +159,28 @@ describe('splitForSpeech', () => {
 
   it('returns nothing for blank text', () => {
     expect(splitForSpeech('  ')).toEqual([]);
+  });
+});
+
+describe('ThinkFilter', () => {
+  const run = (chunks: string[]) => {
+    const f = new ThinkFilter();
+    return chunks.map((c) => f.push(c)).join('') + f.flush();
+  };
+
+  it('drops reasoning in think tags, even when tags are split across chunks', () => {
+    expect(run(['<thi', 'nk>Let me work this out', '... 2+2</th', 'ink>\n\n2 plus 2 is 4.'])).toBe('2 plus 2 is 4.');
+  });
+
+  it('passes ordinary text straight through, including a lone "<"', () => {
+    expect(run(['Use a < b', ' when sorting.'])).toBe('Use a < b when sorting.');
+  });
+
+  it('never shows unfinished reasoning', () => {
+    expect(run(['<think>still going'])).toBe('');
+  });
+
+  it('trims leading blank lines left by the model', () => {
+    expect(withoutThinking('\n\nHello there.')).toBe('Hello there.');
   });
 });

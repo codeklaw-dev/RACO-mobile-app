@@ -25,6 +25,19 @@ export const RESPONSE_STYLES = [
 export const responseStyleSchema = z.enum(['concise', 'balanced', 'detailed']);
 export type ResponseStyle = z.infer<typeof responseStyleSchema>;
 
+/** System-prompt wording for each reply style; shared by the API and the demo preview. */
+export const STYLE_GUIDANCE: Record<ResponseStyle, string> = {
+  concise:
+    'Keep replies short and direct. Lead with the answer and skip preamble. Expand only when the user asks.',
+  balanced:
+    'Give clear answers with just enough context to be useful. Use short paragraphs, and lists only when they help.',
+  detailed:
+    'Give thorough answers with explanations, worked examples and step-by-step instructions where they help.',
+};
+
+/** Keeps replies to what the user needs: no visible reasoning. */
+export const ANSWER_ONLY = 'Reply with the answer itself. Never show your reasoning, plans or drafts, and don\'t restate the question.';
+
 export const notificationPrefsSchema = z.object({
   urgentCalls: z.boolean(),
   dailyCheckIn: z.object({

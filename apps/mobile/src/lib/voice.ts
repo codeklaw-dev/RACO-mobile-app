@@ -8,6 +8,7 @@ import {
   type VoiceTurnResult,
 } from '@raco/shared';
 import {
+  AudioQuality,
   createAudioPlayer,
   RecordingPresets,
   requestRecordingPermissionsAsync,
@@ -24,6 +25,7 @@ import { config } from './config';
 import { DEMO } from './demo';
 import { noteSampleError, previewSample } from './preview-ai';
 import { supabase } from './supabase';
+import { NO_THINKING, withoutThinking } from './think-filter';
 import { meterLevel, splitForSpeech, VoiceActivity } from './voice-activity';
 import { discard, SERVER_VOICE, serverVoiceOn, synthesize, transcribe } from './voice-server';
 
@@ -186,7 +188,15 @@ export async function requestMicrophone(): Promise<boolean> {
   }
 }
 
-const RECORDING: RecordingOptions = { ...RecordingPresets.HIGH_QUALITY, numberOfChannels: 1, isMeteringEnabled: true };
+// Speech models work at 16 kHz mono, so a small file uploads faster with no loss.
+const RECORDING: RecordingOptions = {
+  ...RecordingPresets.HIGH_QUALITY,
+  sampleRate: 16_000,
+  numberOfChannels: 1,
+  bitRate: 32_000,
+  ios: { ...RecordingPresets.HIGH_QUALITY.ios, audioQuality: AudioQuality.MEDIUM },
+  isMeteringEnabled: true,
+};
 
 /**
  * Records for the server's speech-to-text. `begin` opens the mic (with
@@ -590,6 +600,7 @@ async function previewVoiceTurn(req: VoiceTurnRequest): Promise<VoiceTurnResult>
         body: JSON.stringify({
           model: config.llmModel || 'qwen3',
           temperature: 0,
+          ...NO_THINKING,
           messages: [
             {
               role: 'system',
@@ -602,9 +613,8 @@ async function previewVoiceTurn(req: VoiceTurnRequest): Promise<VoiceTurnResult>
       });
 
       if (res.ok) {
-        const body = (await res.json()) as { choices?: { message?: { content?: string | null; reasoning?: string | null } }[] };
-        const msg = body.choices?.[0]?.message;
-        const content = msg?.content || msg?.reasoning || '';
+        const body = (await res.json()) as { choices?: { message?: { content?: string | null } }[] };
+        const content = withoutThinking(body.choices?.[0]?.message?.content ?? '');
         const json = content.slice(content.indexOf('{'), content.lastIndexOf('}') + 1);
         const parsed = voiceResultSchema.safeParse(JSON.parse(json));
         if (parsed.success) return toVoiceResult(parsed.data);

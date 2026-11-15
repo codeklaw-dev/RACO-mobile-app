@@ -1,9 +1,10 @@
 import * as Haptics from 'expo-haptics';
 import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
-import { Modal, Platform, Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fonts, useTheme } from '@/theme';
 import { PathIcon } from './icons';
+import { Overlay } from './overlay';
 
 export interface SheetOption {
   label: string;
@@ -38,7 +39,7 @@ export function ActionSheetProvider({ children }: { children: ReactNode }) {
   return (
     <SheetContext.Provider value={show}>
       {children}
-      <Layer visible={!!req} onClose={close}>
+      <Overlay visible={!!req} onClose={close}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Close"
@@ -95,24 +96,9 @@ export function ActionSheetProvider({ children }: { children: ReactNode }) {
             })}
           </View>
         ) : null}
-      </Layer>
+      </Overlay>
     </SheetContext.Provider>
   );
 }
 
 export const useActionSheet = () => useContext(SheetContext);
-
-/**
- * A native modal on phones. On web a modal attaches to the whole window,
- * outside the preview's phone frame, so it's drawn over the app instead.
- */
-function Layer({ visible, onClose, children }: { visible: boolean; onClose: () => void; children: ReactNode }) {
-  if (Platform.OS === 'web') {
-    return visible ? <View style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }}>{children}</View> : null;
-  }
-  return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
-      <View style={{ flex: 1 }}>{children}</View>
-    </Modal>
-  );
-}

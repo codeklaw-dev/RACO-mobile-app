@@ -6,14 +6,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/button';
 import { TextField } from '@/components/fields';
 import { PageHeader, TextButton, goBack } from '@/components/ui';
-import { createProject, getProject, updateProject } from '@/lib/data';
+import { createProject, getProject, setChatProject, updateProject } from '@/lib/data';
 import { useTheme } from '@/theme';
 
 /** Create a project, or edit one when opened with `id`. */
 export default function ProjectForm() {
   const t = useTheme();
   const insets = useSafeAreaInsets();
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  // `chat`: a chat to move into the new project (from the chat's long-press menu).
+  const { id, chat } = useLocalSearchParams<{ id?: string; chat?: string }>();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
@@ -37,6 +38,7 @@ export default function ProjectForm() {
         goBack();
       } else {
         const project = await createProject(n, description.trim());
+        if (chat) await setChatProject(chat, project.id).catch(() => undefined);
         router.replace({ pathname: '/project/[id]', params: { id: project.id } });
       }
     } catch {

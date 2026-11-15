@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { signOut } from '@/lib/auth';
+import { DEMO } from '@/lib/config';
 import { useAppLock } from '@/state/app-lock';
 import { accent, useTheme } from '@/theme';
 import { Button } from './button';
@@ -36,7 +37,8 @@ export function LockScreen() {
       </View>
       <View style={{ gap: 12 }}>
         <Button label="Unlock" onPress={() => void lock.unlock()} />
-        <Button kind="glass" label="Sign out" onPress={() => void lock.disable().then(signOut)} />
+        {/* Demo builds have no sign-in for now, so there's nothing to sign out of. */}
+        {DEMO ? null : <Button kind="glass" label="Sign out" onPress={() => void lock.disable().then(signOut)} />}
       </View>
     </View>
   );

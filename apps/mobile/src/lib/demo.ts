@@ -3,11 +3,23 @@
  * shared as a clickable preview. Supabase and the RACO API are answered
  * in-memory with sample data. Production builds never set the flag.
  */
-import { CARDS_GUIDANCE, demoReply, messageWithAttachments, VOICE_GUIDANCE, type Attachment, type ChatMode, type ChatStreamEvent } from '@raco/shared';
+import {
+  ANSWER_ONLY,
+  CARDS_GUIDANCE,
+  demoReply,
+  messageWithAttachments,
+  STYLE_GUIDANCE,
+  VOICE_GUIDANCE,
+  type Attachment,
+  type ChatMode,
+  type ChatStreamEvent,
+  type ResponseStyle,
+} from '@raco/shared';
 import { fetch as expoFetch } from 'expo/fetch';
 import { config, DEMO } from './config';
 import { noteSampleError, previewSample, streamPreviewReply } from './preview-ai';
 import { SseParser } from './sse';
+import { NO_THINKING, ThinkFilter } from './think-filter';
 
 export { DEMO };
 const netFetch = typeof expoFetch === 'function' ? expoFetch : globalThis.fetch;
@@ -254,7 +266,8 @@ function previewInstructions(mode: ChatMode = 'text'): string {
     mode === 'voice' ? VOICE_GUIDANCE : 'The user is on a phone. Format for a small screen: short paragraphs, plain Markdown, no wide tables unless asked.',
     mode === 'voice' ? '' : CARDS_GUIDANCE,
     'Attached files appear as fenced blocks starting ```file:<name>. Attached photos appear as ```image:<name> blocks; you cannot see photos in this preview, so say so if asked about one.',
-    'Give clear answers with just enough context to be useful.',
+    STYLE_GUIDANCE[p.response_style as ResponseStyle] ?? STYLE_GUIDANCE.balanced,
+    ANSWER_ONLY,
     p.display_name ? `The user's first name is ${p.display_name}.` : '',
     p.interests.length ? `They mainly want help with: ${p.interests.join(', ')}.` : '',
     'Reply to the conversation that follows.',
@@ -283,6 +296,7 @@ async function* streamLlmDirect(
     body: JSON.stringify({
       model: config.llmModel || 'qwen3',
       stream: true,
+      ...NO_THINKING,
       messages: [
         { role: 'system', content: systemPrompt },
         ...messages.map((m) => ({ role: m.role, content: m.content })),
@@ -295,9 +309,18 @@ async function* streamLlmDirect(
     throw new Error(`LLM returned ${res.status}`);
   }
 
-  let sentAnyText = false;
-  let reasoningBuffer = '';
+  // Only the answer is shown: reasoning, in its own field or in <think> tags, is dropped.
   const parser = new SseParser();
+  const think = new ThinkFilter();
+  const answerIn = (data: string): string => {
+    if (data === '[DONE]') return '';
+    try {
+      const chunk = JSON.parse(data) as { choices?: { delta?: { content?: string | null } }[] };
+      return think.push(chunk.choices?.[0]?.delta?.content ?? '');
+    } catch {
+      return '';
+    }
+  };
 
   if (res.body && typeof res.body.getReader === 'function') {
     const reader = res.body.getReader();
@@ -307,66 +330,21 @@ async function* streamLlmDirect(
         const { value, done } = await reader.read();
         if (done) break;
         for (const data of parser.push(decoder.decode(value, { stream: true }))) {
-          if (data === '[DONE]') continue;
-          try {
-            const chunk = JSON.parse(data) as {
-              choices?: {
-                delta?: {
-                  content?: string | null;
-                  reasoning?: string | null;
-                  reasoning_content?: string | null;
-                };
-              }[];
-            };
-            const delta = chunk.choices?.[0]?.delta;
-            const text = delta?.content;
-            if (text) {
-              sentAnyText = true;
-              yield text;
-            } else {
-              const reasoning = delta?.reasoning ?? delta?.reasoning_content;
-              if (reasoning) reasoningBuffer += reasoning;
-            }
-          } catch {
-            // ignore partial JSON
-          }
+          const text = answerIn(data);
+          if (text) yield text;
         }
       }
     } finally {
       reader.releaseLock();
     }
   } else {
-    const fullText = await res.text();
-    for (const data of parser.push(fullText)) {
-      if (data === '[DONE]') continue;
-      try {
-        const chunk = JSON.parse(data) as {
-          choices?: {
-            delta?: {
-              content?: string | null;
-              reasoning?: string | null;
-              reasoning_content?: string | null;
-            };
-          }[];
-        };
-        const delta = chunk.choices?.[0]?.delta;
-        const text = delta?.content;
-        if (text) {
-          sentAnyText = true;
-          yield text;
-        } else {
-          const reasoning = delta?.reasoning ?? delta?.reasoning_content;
-          if (reasoning) reasoningBuffer += reasoning;
-        }
-      } catch {
-        // ignore partial JSON
-      }
+    for (const data of parser.push(await res.text())) {
+      const text = answerIn(data);
+      if (text) yield text;
     }
   }
-
-  if (!sentAnyText && reasoningBuffer) {
-    yield reasoningBuffer;
-  }
+  const rest = think.flush();
+  if (rest) yield rest;
 }
 
 /** Stands in for the RACO API's streaming chat endpoint. */

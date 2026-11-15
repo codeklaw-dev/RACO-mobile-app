@@ -24,7 +24,7 @@ and the check script, then bump the dates.
 | 2.3.1 | Describe features accurately; no hidden features | The review notes must list every feature. Demo mode is not reachable in production builds. |
 | 2.5.1 | Public APIs only, current SDK | Expo SDK 58 with public modules only. EAS builds use the `latest` image (Xcode 26 and the iOS 26 SDK, required for uploads since 2026-04-28). |
 | 2.5.2 | No downloaded or executed code | No `eval` or remote code. OTA updates may only change JS and assets within the reviewed purpose. |
-| 2.5.13 | Face ID through LocalAuthentication, with a fallback | `expo-local-authentication` with the device passcode fallback left on. |
+| 2.5.13 | Face ID through LocalAuthentication, with a fallback | `expo-local-authentication` with the device passcode fallback left on. The lock is optional: the app offers it once on first open (Not now / Use Face ID) and Settings can turn it on or off. |
 | 2.5.14 | Consent and a visible indicator when recording | The microphone only runs while the user is talking to Raco: while the talk button is held in onboarding, while dictating (the mic button turns into a stop button and the field says Listening…) and in voice mode (the orb shows Listening). The same purpose string is set on `expo-speech-recognition` and `expo-audio`. |
 | 4.2 / 4.3 | More than a wrapper; not a clone | Voice-led onboarding, voice mode, a personal agent name, reply styles and Face ID lock. Describe them in the review notes. |
 | 4.5.4 | Push isn't required and isn't used for marketing without opt-in | Notifications are optional and off unless chosen in onboarding or Settings. |

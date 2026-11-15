@@ -1,14 +1,5 @@
-import { CARDS_GUIDANCE, VOICE_GUIDANCE, type ChatMode, type ResponseStyle } from '@raco/shared';
+import { ANSWER_ONLY, CARDS_GUIDANCE, STYLE_GUIDANCE, VOICE_GUIDANCE, type ChatMode } from '@raco/shared';
 import type { UserContext } from './store';
-
-const STYLE_GUIDANCE: Record<ResponseStyle, string> = {
-  concise:
-    'Keep replies short and direct. Lead with the answer and skip preamble. Expand only when the user asks.',
-  balanced:
-    'Give clear answers with just enough context to be useful. Use short paragraphs, and lists only when they help.',
-  detailed:
-    'Give thorough answers with explanations, worked examples and step-by-step instructions where they help.',
-};
 
 /**
  * Builds the system prompt. Kept deterministic for a given user so the
@@ -21,6 +12,7 @@ export function buildSystemPrompt(ctx: UserContext, mode: ChatMode = 'text'): st
     '',
     mode === 'voice' ? VOICE_GUIDANCE : 'The user is on a phone. Format for a small screen: short paragraphs, plain Markdown, no wide tables unless asked.',
     STYLE_GUIDANCE[ctx.responseStyle],
+    ANSWER_ONLY,
     'If you are unsure about a fact that matters, say so plainly rather than guessing.',
   ];
   // Cards are visual, so voice replies don't use them.

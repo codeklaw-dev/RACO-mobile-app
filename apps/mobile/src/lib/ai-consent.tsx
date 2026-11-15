@@ -13,6 +13,7 @@ import { Pressable, Text, View } from 'react-native';
 import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/button';
+import { Overlay } from '@/components/overlay';
 import { useSession } from '@/state/session';
 import { fonts, useTheme } from '@/theme';
 import { config } from './config';
@@ -62,42 +63,50 @@ function ConsentSheet({ onAnswer }: { onAnswer: (ok: boolean) => void }) {
   const { profile } = useSession();
   const agent = profile?.agentName ?? 'Raco';
 
+  // An overlay, so the sheet also shows over full-screen pages such as voice mode.
   return (
-    <View style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, justifyContent: 'flex-end' }}>
-      <Animated.View entering={FadeIn.duration(200)} style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(0,0,0,0.3)' }}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Not now" onPress={() => onAnswer(false)} style={{ flex: 1 }} />
-      </Animated.View>
-      <Animated.View
-        entering={SlideInDown.duration(260)}
-        accessibilityViewIsModal
-        style={{
-          backgroundColor: t.background,
-          borderTopLeftRadius: 28,
-          borderTopRightRadius: 28,
-          paddingTop: 24,
-          paddingHorizontal: 24,
-          paddingBottom: Math.max(insets.bottom, 16) + 8,
-          gap: 14,
-          boxShadow: '0 -8px 40px rgba(0,0,0,0.15)',
-        }}>
-        <Text accessibilityRole="header" style={{ fontFamily: fonts.display, fontSize: 24, lineHeight: 30, color: t.text }}>
-          Before you start
-        </Text>
-        <Text style={{ fontFamily: fonts.body, fontSize: 16, lineHeight: 23, color: t.sub }}>{aiDisclosure(agent)}</Text>
-        <Text style={{ fontFamily: fonts.body, fontSize: 16, lineHeight: 23, color: t.sub }}>
-          {agent} can make mistakes, so check anything important.{' '}
-          <Text accessibilityRole="link" onPress={() => void WebBrowser.openBrowserAsync(config.privacyUrl)} style={{ color: t.text, textDecorationLine: 'underline' }}>
-            Privacy Policy
+    <Overlay visible onClose={() => onAnswer(false)}>
+      <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+        <Animated.View
+          entering={FadeIn.duration(200)}
+          style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(0,0,0,0.3)' }}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Not now" onPress={() => onAnswer(false)} style={{ flex: 1 }} />
+        </Animated.View>
+        <Animated.View
+          entering={SlideInDown.duration(260)}
+          accessibilityViewIsModal
+          style={{
+            backgroundColor: t.background,
+            borderTopLeftRadius: 28,
+            borderTopRightRadius: 28,
+            paddingTop: 24,
+            paddingHorizontal: 24,
+            paddingBottom: Math.max(insets.bottom, 16) + 8,
+            gap: 14,
+            boxShadow: '0 -8px 40px rgba(0,0,0,0.15)',
+          }}>
+          <Text accessibilityRole="header" style={{ fontFamily: fonts.display, fontSize: 24, lineHeight: 30, color: t.text }}>
+            Before you start
           </Text>
-        </Text>
-        <View style={{ gap: 4, marginTop: 6 }}>
-          <Button label="Agree and continue" onPress={() => onAnswer(true)} />
-          <Pressable accessibilityRole="button" onPress={() => onAnswer(false)} style={{ alignSelf: 'center', padding: 12 }}>
-            <Text style={{ fontFamily: fonts.bodySemibold, fontSize: 16, color: t.text }}>Not now</Text>
-          </Pressable>
-        </View>
-      </Animated.View>
-    </View>
+          <Text style={{ fontFamily: fonts.body, fontSize: 16, lineHeight: 23, color: t.sub }}>{aiDisclosure(agent)}</Text>
+          <Text style={{ fontFamily: fonts.body, fontSize: 16, lineHeight: 23, color: t.sub }}>
+            {agent} can make mistakes, so check anything important.{' '}
+            <Text
+              accessibilityRole="link"
+              onPress={() => void WebBrowser.openBrowserAsync(config.privacyUrl)}
+              style={{ color: t.text, textDecorationLine: 'underline' }}>
+              Privacy Policy
+            </Text>
+          </Text>
+          <View style={{ gap: 4, marginTop: 6 }}>
+            <Button label="Agree and continue" onPress={() => onAnswer(true)} />
+            <Pressable accessibilityRole="button" onPress={() => onAnswer(false)} style={{ alignSelf: 'center', padding: 12 }}>
+              <Text style={{ fontFamily: fonts.bodySemibold, fontSize: 16, color: t.text }}>Not now</Text>
+            </Pressable>
+          </View>
+        </Animated.View>
+      </View>
+    </Overlay>
   );
 }
 

@@ -85,7 +85,7 @@ function Navigator() {
   return (
     <>
       <StatusBar style={t.scheme === 'dark' ? 'light' : 'dark'} />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: t.background } }}>
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: t.background }, animation: 'fade', animationDuration: 180 }}>
         <Stack.Screen name="index" />
         <Stack.Protected guard={!signedIn}>
           <Stack.Screen name="(auth)" />

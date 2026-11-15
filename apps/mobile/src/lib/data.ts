@@ -34,6 +34,11 @@ export async function setChatPinned(id: string, pinned: boolean): Promise<void> 
   check(await supabase.from('conversations').update({ pinned_at: pinned ? new Date().toISOString() : null }).eq('id', id));
 }
 
+/** Puts a chat in a project, or takes it out with null. */
+export async function setChatProject(id: string, projectId: string | null): Promise<void> {
+  check(await supabase.from('conversations').update({ project_id: projectId }).eq('id', id));
+}
+
 export async function deleteChat(id: string): Promise<void> {
   check(await supabase.from('conversations').delete().eq('id', id));
 }

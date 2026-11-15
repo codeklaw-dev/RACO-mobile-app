@@ -8,7 +8,7 @@ export default function OnboardingLayout() {
   const t = useTheme();
   return (
     <OnboardingProvider>
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: t.background } }} />
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: t.background }, animation: 'fade', animationDuration: 180 }} />
     </OnboardingProvider>
   );
 }

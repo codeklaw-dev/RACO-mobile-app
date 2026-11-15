@@ -1,4 +1,4 @@
-import type { ConversationSummary } from '@raco/shared';
+import type { ConversationSummary, Project } from '@raco/shared';
 import { router, useLocalSearchParams, type Href } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { useEffect, useState } from 'react';
@@ -12,7 +12,7 @@ import { Avatar } from '@/components/avatar';
 import { IconButton } from '@/components/button';
 import { ICONS, Logo, PathIcon } from '@/components/icons';
 import { SearchField } from '@/components/ui';
-import { deleteChat, listChats, setChatPinned, useFocusData } from '@/lib/data';
+import { deleteChat, listChats, listProjects, setChatPinned, setChatProject, useFocusData } from '@/lib/data';
 import { isEmpty, useSearch } from '@/lib/search';
 import { useSession } from '@/state/session';
 import { fonts, useTheme } from '@/theme';
@@ -125,6 +125,31 @@ export default function Menu() {
       return { ...o, [key]: !o[key] };
     });
 
+  const moveToProject = (c: ConversationSummary, projectId: string | null) => {
+    chats.set((list) => list?.map((x) => (x.id === c.id ? { ...x, projectId } : x)) ?? null);
+    void setChatProject(c.id, projectId).catch(() => {
+      Alert.alert("Couldn't move the chat", 'Please try again.');
+      void chats.reload();
+    });
+  };
+
+  const projectActions = async (c: ConversationSummary) => {
+    let projects: Project[];
+    try {
+      projects = await listProjects();
+    } catch {
+      return Alert.alert("Couldn't load your projects", 'Please try again.');
+    }
+    sheet({
+      title: c.projectId ? 'Move to project' : 'Add to project',
+      options: [
+        ...projects.filter((p) => p.id !== c.projectId).map((p) => ({ label: p.name, icon: ICONS.projects, onPress: () => moveToProject(c, p.id) })),
+        { label: 'New project', icon: ICONS.newChat, onPress: () => go({ pathname: '/project/new', params: { chat: c.id } }) },
+        ...(c.projectId ? [{ label: 'Remove from project', icon: ICONS.close, onPress: () => moveToProject(c, null) }] : []),
+      ],
+    });
+  };
+
   const chatActions = (c: ConversationSummary) =>
     sheet({
       title: c.title,
@@ -139,6 +164,7 @@ export default function Menu() {
           },
         },
         { label: 'Rename', icon: ICONS.pencil, onPress: () => go({ pathname: '/rename-chat', params: { id: c.id, title: c.title } }) },
+        { label: c.projectId ? 'Move to project' : 'Add to project', icon: ICONS.projects, onPress: () => void projectActions(c) },
         {
           label: 'Delete',
           icon: ICONS.trash,
@@ -182,7 +208,7 @@ export default function Menu() {
         key={c.id}
         accessibilityRole="button"
         accessibilityState={{ selected: isCurrent }}
-        accessibilityHint="Long press for pin, rename and delete"
+        accessibilityHint="Long press to pin, rename, add to a project or delete"
         onPress={() => (isCurrent ? close() : go({ pathname: '/chat/[id]', params: { id: c.id } }))}
         onLongPress={() => chatActions(c)}
         style={({ pressed }) => ({

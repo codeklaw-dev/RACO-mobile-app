@@ -8,22 +8,22 @@ export function meterLevel(db: number | undefined): number {
   return Math.max(0, Math.min(1, (db + 50) / 40));
 }
 
-const SPEECH_DB = -38;
-const QUIET_DB = -42;
-
 /**
  * Decides when a hands-free recording is finished from the mic level:
  * after some speech, a pause ends it; with no speech at all, it gives up.
+ * Speech and silence are judged against the room's own noise floor (the
+ * quietest level so far), so background noise doesn't keep it open.
  * Feed it a level every ~100 ms; it returns what to do.
  */
 export class VoiceActivity {
   private heard = false;
+  private floor = 0;
   private quietSince: number | null = null;
   private readonly startedAt: number;
 
   constructor(
     now: number,
-    private readonly pauseMs = 1300,
+    private readonly pauseMs = 1000,
     private readonly giveUpMs = 7000,
     private readonly maxMs = 30_000,
   ) {
@@ -31,11 +31,14 @@ export class VoiceActivity {
   }
 
   push(db: number | undefined, now: number): 'continue' | 'done' | 'nothing' {
-    const level = db ?? -160;
-    if (level > SPEECH_DB) {
+    const level = Math.max(db ?? -160, -80);
+    this.floor = Math.min(this.floor, level);
+    // Noise is never assumed louder than -40 dB, so speaking straight away still counts as speech.
+    const speechLine = Math.max(Math.min(this.floor, -40) + 15, -45);
+    if (level > speechLine) {
       this.heard = true;
       this.quietSince = null;
-    } else if (level < QUIET_DB && this.heard) {
+    } else if (level < speechLine - 6 && this.heard) {
       this.quietSince ??= now;
     }
     if (now - this.startedAt >= this.maxMs) return this.heard ? 'done' : 'nothing';
