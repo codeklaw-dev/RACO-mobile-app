@@ -3,7 +3,7 @@ import { greeting, humanList } from './greeting';
 import { forClipboard, parseInline, parseMarkdown, toPlainText } from './markdown';
 import { SseParser } from './sse';
 import { ThinkFilter, withoutThinking } from './think-filter';
-import { meterLevel, splitForSpeech, VoiceActivity } from './voice-activity';
+import { meterLevel, splitForSpeech, takeSpeakable, VoiceActivity } from './voice-activity';
 
 describe('SseParser', () => {
   it('returns complete events and buffers partial ones', () => {
@@ -38,6 +38,25 @@ describe('parseMarkdown', () => {
     expect(parseMarkdown('> quoted\n> text')).toEqual([
       { type: 'quote', children: [{ type: 'text', text: 'quoted\ntext' }] },
     ]);
+  });
+});
+
+describe('parseMarkdown: model output', () => {
+  it('nests indented list items under the one before', () => {
+    const [list] = parseMarkdown('*   Visit the **library**.\n*   Walk the park.\n    *   Bring water.\n*   Eat lunch.');
+    expect(list).toMatchObject({ type: 'list', ordered: false, depths: [0, 0, 1, 0] });
+    expect(list?.type === 'list' && list.items.map((i) => i.map((n) => n.type).join(','))).toEqual(['text,bold,text', 'text', 'text', 'text']);
+  });
+
+  it('turns --- into a divider and | tables | into a table', () => {
+    const blocks = parseMarkdown('Intro\n\n---\n\n| Item | Cost |\n|---|:---:|\n| Rickshaw | 50 |\n| Tea | 10 |');
+    expect(blocks.map((b) => b.type)).toEqual(['paragraph', 'rule', 'table']);
+    expect(blocks[2]).toMatchObject({ header: [[{ text: 'Item' }], [{ text: 'Cost' }]], rows: [[[{ text: 'Rickshaw' }], [{ text: '50' }]], [[{ text: 'Tea' }], [{ text: '10' }]]] });
+  });
+
+  it('keeps numbering across blank lines between items', () => {
+    const blocks = parseMarkdown('1. **First**\n\n2. **Second**');
+    expect(blocks).toMatchObject([{ type: 'list', start: 1 }, { type: 'list', start: 2 }]);
   });
 });
 
@@ -92,7 +111,7 @@ describe('VoiceActivity', () => {
 
   it('ends after speech and then a pause', () => {
     const va = new VoiceActivity(0);
-    expect(feed(va, [[-60, 100], [-20, 500], [-25, 900], [-55, 1000], [-55, 1900], [-55, 2000]])).toEqual([
+    expect(feed(va, [[-60, 100], [-20, 500], [-25, 900], [-55, 1000], [-55, 1700], [-55, 1800]])).toEqual([
       'continue',
       'continue',
       'continue',
@@ -104,12 +123,12 @@ describe('VoiceActivity', () => {
 
   it('keeps listening through short gaps between words', () => {
     const va = new VoiceActivity(0);
-    expect(feed(va, [[-20, 100], [-55, 200], [-20, 1100], [-55, 1300], [-55, 2200]])).toEqual(['continue', 'continue', 'continue', 'continue', 'continue']);
+    expect(feed(va, [[-20, 100], [-55, 200], [-20, 900], [-55, 1300], [-55, 2000]])).toEqual(['continue', 'continue', 'continue', 'continue', 'continue']);
   });
 
   it('ends in a noisy room once speech drops back to the noise', () => {
     const va = new VoiceActivity(0);
-    expect(feed(va, [[-40, 100], [-38, 200], [-18, 500], [-40, 700], [-39, 1200], [-40, 1800]])).toEqual([
+    expect(feed(va, [[-40, 100], [-38, 200], [-18, 500], [-40, 700], [-39, 1200], [-40, 1500]])).toEqual([
       'continue',
       'continue',
       'continue',
@@ -182,5 +201,20 @@ describe('ThinkFilter', () => {
 
   it('trims leading blank lines left by the model', () => {
     expect(withoutThinking('\n\nHello there.')).toBe('Hello there.');
+  });
+});
+
+describe('takeSpeakable', () => {
+  it('starts with the first clause, then whole sentences', () => {
+    // Mid-stream: the first sentence hasn't finished, but its first clause has.
+    const [first, at] = takeSpeakable('The second train catches up at seven, three hours', 0);
+    expect(first).toBe('The second train catches up at seven,');
+    const text = 'The second train catches up at seven, three hours after it leaves. It closes';
+    expect(takeSpeakable(text, at)).toEqual([' three hours after it leaves.', text.indexOf(' It closes')]);
+  });
+
+  it('waits when nothing is finished yet', () => {
+    expect(takeSpeakable('Sure, let me', 0)).toEqual(['', 0]);
+    expect(takeSpeakable('Done. And then, more', 5)).toEqual(['', 5]);
   });
 });

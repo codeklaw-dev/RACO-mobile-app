@@ -1,7 +1,7 @@
 /**
  * Small Markdown parser for chat replies. Covers what the assistant is told
- * to produce on a phone: paragraphs, headings, lists, quotes, fenced code
- * and inline bold/italic/code/links. It must tolerate half-streamed input,
+ * to produce on a phone: paragraphs, headings, lists (with nesting), quotes,
+ * fenced code, tables, dividers and inline bold/italic/code/links. It must tolerate half-streamed input,
  * e.g. a code fence that hasn't closed yet.
  */
 
@@ -17,11 +17,27 @@ export type Inline =
 export type Block =
   | { type: 'paragraph'; children: Inline[] }
   | { type: 'heading'; level: 1 | 2 | 3; children: Inline[] }
-  | { type: 'list'; ordered: boolean; start: number; items: Inline[][] }
+  /** `depths[i]` is 0 for a top-level item, 1 or 2 for nested ones. */
+  | { type: 'list'; ordered: boolean; start: number; items: Inline[][]; depths: number[] }
   | { type: 'quote'; children: Inline[] }
-  | { type: 'code'; lang: string; text: string };
+  | { type: 'code'; lang: string; text: string }
+  | { type: 'table'; header: Inline[][]; rows: Inline[][][] }
+  | { type: 'rule' };
 
 const LIST_ITEM = /^\s{0,3}(?:([-*+])|(\d{1,9})[.)])\s+(.*)$/;
+const ANY_ITEM = /^(\s*)(?:[-*+]|\d{1,9}[.)])\s+(.*)$/;
+const RULE = /^\s{0,3}([-*_])(?:\s*\1){2,}\s*$/;
+const TABLE_DIVIDER = /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$/;
+
+/** The cells of a `| a | b |` row. */
+function cells(line: string): Inline[][] {
+  return line
+    .trim()
+    .replace(/^\|/, '')
+    .replace(/\|$/, '')
+    .split('|')
+    .map((c) => parseInline(c.trim()));
+}
 
 export function parseMarkdown(src: string): Block[] {
   const lines = src.replace(/\r\n?/g, '\n').split('\n');
@@ -68,25 +84,53 @@ export function parseMarkdown(src: string): Block[] {
       continue;
     }
 
+    if (RULE.test(line)) {
+      flushPara();
+      blocks.push({ type: 'rule' });
+      continue;
+    }
+
+    // A table: a row of cells, then a |---|---| divider.
+    if (line.includes('|') && TABLE_DIVIDER.test(lines[i + 1] ?? '')) {
+      flushPara();
+      const header = cells(line);
+      const rows: Inline[][][] = [];
+      i += 2;
+      while (i < lines.length && lines[i]!.includes('|') && lines[i]!.trim()) rows.push(cells(lines[i++]!));
+      i--;
+      blocks.push({ type: 'table', header, rows });
+      continue;
+    }
+
     const item = line.match(LIST_ITEM);
     if (item) {
       flushPara();
       const ordered = !item[1];
       const start = ordered ? Number(item[2]) : 1;
+      const base = line.length - line.trimStart().length;
       const items: string[] = [];
+      const depths: number[] = [];
       while (i < lines.length) {
-        const m = lines[i]!.match(LIST_ITEM);
-        if (m && !m[1] === ordered) {
+        const current = lines[i]!;
+        const indent = current.length - current.trimStart().length;
+        const nested = indent >= base + 2 ? current.match(ANY_ITEM) : null;
+        const m = current.match(LIST_ITEM);
+        if (items.length && nested) {
+          // An indented item belongs under the one before it.
+          items.push(nested[2]!);
+          depths.push(indent >= base + 6 ? 2 : 1);
+        } else if (m && !m[1] === ordered) {
           items.push(m[3]!);
-        } else if (items.length && /^\s{2,}\S/.test(lines[i]!)) {
-          items[items.length - 1] += `\n${lines[i]!.trim()}`; // continuation line
+          depths.push(0);
+        } else if (items.length && /^\s{2,}\S/.test(current)) {
+          items[items.length - 1] += `\n${current.trim()}`; // continuation line
         } else {
           break;
         }
         i++;
       }
       i--;
-      blocks.push({ type: 'list', ordered, start, items: items.map(parseInline) });
+      blocks.push({ type: 'list', ordered, start, items: items.map(parseInline), depths });
       continue;
     }
 
@@ -158,7 +202,10 @@ export function toPlainText(src: string): string {
       switch (b.type) {
         case 'list':
           return b.items.map((item) => endSentence(inline(item))).join(' ');
+        case 'table':
+          return [b.header, ...b.rows].map((row) => endSentence(row.map(inline).join(', '))).join(' ');
         case 'code':
+        case 'rule':
           return '';
         default:
           return endSentence(inline(b.children));

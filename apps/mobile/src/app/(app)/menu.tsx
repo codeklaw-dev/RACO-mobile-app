@@ -1,6 +1,7 @@
 import type { ConversationSummary, Project } from '@raco/shared';
 import { router, useLocalSearchParams, type Href } from 'expo-router';
 import { BlurView } from 'expo-blur';
+import * as Haptics from 'expo-haptics';
 import { useEffect, useState } from 'react';
 import { Alert, Platform, Pressable, Text, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -201,29 +202,15 @@ export default function Menu() {
     </Pressable>
   );
 
-  const chatRow = (c: ConversationSummary) => {
-    const isCurrent = c.id === current;
-    return (
-      <Pressable
-        key={c.id}
-        accessibilityRole="button"
-        accessibilityState={{ selected: isCurrent }}
-        accessibilityHint="Long press to pin, rename, add to a project or delete"
-        onPress={() => (isCurrent ? close() : go({ pathname: '/chat/[id]', params: { id: c.id } }))}
-        onLongPress={() => chatActions(c)}
-        style={({ pressed }) => ({
-          height: 42,
-          justifyContent: 'center',
-          paddingHorizontal: 12,
-          borderRadius: 21,
-          backgroundColor: isCurrent || pressed ? t.tile : 'transparent',
-        })}>
-        <Text numberOfLines={1} style={{ fontFamily: isCurrent ? fonts.bodyMedium : fonts.body, fontSize: 16, color: t.text }}>
-          {c.title}
-        </Text>
-      </Pressable>
-    );
-  };
+  const chatRow = (c: ConversationSummary) => (
+    <ChatRow
+      key={c.id}
+      title={c.title}
+      current={c.id === current}
+      onOpen={() => (c.id === current ? close() : go({ pathname: '/chat/[id]', params: { id: c.id } }))}
+      onMore={() => chatActions(c)}
+    />
+  );
 
   const sectionLabel = (label: string) => (
     <Text
@@ -453,5 +440,55 @@ export default function Menu() {
         </Animated.View>
       </GestureDetector>
     </View>
+  );
+}
+
+/**
+ * A chat in the panel. Tap opens it; holding it opens pin, rename, project
+ * and delete. Both are native gestures: inside the panel's scroll view and
+ * swipe-to-close gesture, a plain Pressable's long press was cancelled before
+ * it fired.
+ */
+function ChatRow({ title, current, onOpen, onMore }: { title: string; current: boolean; onOpen: () => void; onMore: () => void }) {
+  const t = useTheme();
+  const [pressed, setPressed] = useState(false);
+  const hold = Gesture.LongPress()
+    .minDuration(380)
+    .runOnJS(true)
+    .onStart(() => {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      onMore();
+    });
+  const tap = Gesture.Tap()
+    .runOnJS(true)
+    .onBegin(() => setPressed(true))
+    .onFinalize(() => setPressed(false))
+    .onEnd((_e, success) => {
+      if (success) onOpen();
+    });
+  const gesture = Gesture.Exclusive(hold, tap);
+
+  return (
+    <GestureDetector gesture={gesture}>
+      <View
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel={title}
+        accessibilityState={{ selected: current }}
+        accessibilityHint="Double-tap to open. Use the actions menu to pin, rename, add to a project or delete."
+        accessibilityActions={[{ name: 'activate' }, { name: 'longpress', label: 'Chat options' }]}
+        onAccessibilityAction={(e) => (e.nativeEvent.actionName === 'longpress' ? onMore() : onOpen())}
+        style={{
+          height: 42,
+          justifyContent: 'center',
+          paddingHorizontal: 12,
+          borderRadius: 21,
+          backgroundColor: current || pressed ? t.tile : 'transparent',
+        }}>
+        <Text numberOfLines={1} style={{ fontFamily: current ? fonts.bodyMedium : fonts.body, fontSize: 16, color: t.text }}>
+          {title}
+        </Text>
+      </View>
+    </GestureDetector>
   );
 }

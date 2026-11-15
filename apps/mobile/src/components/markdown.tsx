@@ -29,22 +29,71 @@ export const Markdown = memo(function Markdown({ text }: { text: string }) {
               <Text
                 key={i}
                 accessibilityRole="header"
-                style={{ fontFamily: fonts.display, color: t.text, fontSize: b.level === 1 ? 24 : b.level === 2 ? 21 : 18, lineHeight: b.level === 1 ? 30 : 26 }}>
+                style={{
+                  fontFamily: fonts.display,
+                  color: t.text,
+                  fontSize: b.level === 1 ? 24 : b.level === 2 ? 21 : 18,
+                  lineHeight: b.level === 1 ? 30 : 26,
+                }}>
                 {renderInline(b.children, t)}
               </Text>
             );
-          case 'list':
+          case 'list': {
+            // Top-level items are numbered in order; nested ones get a hollow bullet.
+            let n = b.start - 1;
             return (
               <View key={i} style={{ gap: 6 }}>
-                {b.items.map((item, j) => (
-                  <View key={j} style={{ flexDirection: 'row', gap: 8 }}>
-                    <Text style={[base, { minWidth: b.ordered ? 22 : 12, color: t.sub }]}>{b.ordered ? `${b.start + j}.` : '•'}</Text>
-                    <Text selectable style={[base, { flex: 1 }]}>
-                      {renderInline(item, t)}
-                    </Text>
-                  </View>
-                ))}
+                {b.items.map((item, j) => {
+                  const depth = b.depths[j] ?? 0;
+                  if (depth === 0) n++;
+                  const marker = depth > 0 ? '◦' : b.ordered ? `${n}.` : '•';
+                  return (
+                    <View key={j} style={{ flexDirection: 'row', gap: 8, marginLeft: depth * 20 }}>
+                      <Text style={[base, { minWidth: b.ordered && depth === 0 ? 22 : 12, color: t.sub }]}>{marker}</Text>
+                      <Text selectable style={[base, { flex: 1 }]}>
+                        {renderInline(item, t)}
+                      </Text>
+                    </View>
+                  );
+                })}
               </View>
+            );
+          }
+          case 'rule':
+            return <View key={i} style={{ height: 1, backgroundColor: t.hairline, marginVertical: 4 }} />;
+          case 'table':
+            return (
+              <ScrollView
+                key={i}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={{ borderRadius: 12, borderWidth: 1, borderColor: t.hairline }}>
+                <View>
+                  {[b.header, ...b.rows].map((row, r) => (
+                    <View
+                      key={r}
+                      style={{
+                        flexDirection: 'row',
+                        backgroundColor: r === 0 ? t.tile : 'transparent',
+                        borderTopWidth: r ? 1 : 0,
+                        borderTopColor: t.hairline,
+                      }}>
+                      {row.map((cell, c) => (
+                        <Text
+                          key={c}
+                          selectable
+                          style={[
+                            base,
+                            { width: 140, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, lineHeight: 21 },
+                            r === 0 && { fontFamily: fonts.bodySemibold },
+                          ]}>
+                          {renderInline(cell, t)}
+                        </Text>
+                      ))}
+                    </View>
+                  ))}
+                </View>
+              </ScrollView>
             );
           case 'quote':
             return (

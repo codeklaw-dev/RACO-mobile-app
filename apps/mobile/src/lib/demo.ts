@@ -19,7 +19,7 @@ import { fetch as expoFetch } from 'expo/fetch';
 import { config, DEMO } from './config';
 import { noteSampleError, previewSample, streamPreviewReply } from './preview-ai';
 import { SseParser } from './sse';
-import { NO_THINKING, ThinkFilter } from './think-filter';
+import { thinking, ThinkFilter } from './think-filter';
 
 export { DEMO };
 const netFetch = typeof expoFetch === 'function' ? expoFetch : globalThis.fetch;
@@ -281,6 +281,7 @@ async function* streamLlmDirect(
   messages: { role: 'user' | 'assistant'; content: string }[],
   systemPrompt: string,
   signal?: AbortSignal,
+  reason = true,
 ): AsyncGenerator<string> {
   const rawUrl = config.llmChatUrl.replace(/\/+$/, '');
   const url = rawUrl.endsWith('/chat/completions') ? rawUrl : `${rawUrl}/chat/completions`;
@@ -296,7 +297,7 @@ async function* streamLlmDirect(
     body: JSON.stringify({
       model: config.llmModel || 'qwen3',
       stream: true,
-      ...NO_THINKING,
+      ...thinking(reason),
       messages: [
         { role: 'system', content: systemPrompt },
         ...messages.map((m) => ({ role: m.role, content: m.content })),
@@ -309,7 +310,7 @@ async function* streamLlmDirect(
     throw new Error(`LLM returned ${res.status}`);
   }
 
-  // Only the answer is shown: reasoning, in its own field or in <think> tags, is dropped.
+  // Only the answer is shown: reasoning, in its own `reasoning` field or in <think> tags, is dropped.
   const parser = new SseParser();
   const think = new ThinkFilter();
   const answerIn = (data: string): string => {
@@ -386,7 +387,7 @@ export async function* demoStreamChat(
   } else if (config.llmChatUrl && config.llmApiKey) {
     // Real replies from the configured LLM in Expo Go / Demo mode.
     try {
-      for await (const delta of streamLlmDirect(chat.messages, previewInstructions(req.mode), signal)) {
+      for await (const delta of streamLlmDirect(chat.messages, previewInstructions(req.mode), signal, req.mode !== 'voice')) {
         sent += delta;
         yield { type: 'delta', text: delta };
       }

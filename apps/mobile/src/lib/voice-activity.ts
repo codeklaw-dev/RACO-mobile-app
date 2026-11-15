@@ -23,7 +23,7 @@ export class VoiceActivity {
 
   constructor(
     now: number,
-    private readonly pauseMs = 1000,
+    private readonly pauseMs = 800,
     private readonly giveUpMs = 7000,
     private readonly maxMs = 30_000,
   ) {
@@ -75,4 +75,27 @@ export function splitForSpeech(text: string, max = 280): string[] {
   }
   if (piece.trim()) out.push(piece.trim());
   return out;
+}
+
+/**
+ * The next piece of a streaming reply that is ready to speak, from `from`:
+ * finished sentences, or for the very first piece a clause (up to a comma or
+ * dash), so the voice starts as soon as possible. Returns the text and where
+ * the next piece starts.
+ */
+export function takeSpeakable(text: string, from: number): [string, number] {
+  const rest = text.slice(from);
+  let end = -1;
+  const sentence = /[.!?…:](?=\s)|\n/g;
+  for (let m = sentence.exec(rest); m; m = sentence.exec(rest)) end = m.index + 1;
+  if (end < 0 && from === 0) {
+    const clause = /[,;—–](?=\s)/g;
+    for (let m = clause.exec(rest); m; m = clause.exec(rest)) {
+      if (m.index >= 24) {
+        end = m.index + 1;
+        break;
+      }
+    }
+  }
+  return end < 0 ? ['', from] : [rest.slice(0, end), from + end];
 }

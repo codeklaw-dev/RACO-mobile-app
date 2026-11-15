@@ -25,7 +25,7 @@ import { config } from './config';
 import { DEMO } from './demo';
 import { noteSampleError, previewSample } from './preview-ai';
 import { supabase } from './supabase';
-import { NO_THINKING, withoutThinking } from './think-filter';
+import { thinking, withoutThinking } from './think-filter';
 import { meterLevel, splitForSpeech, VoiceActivity } from './voice-activity';
 import { discard, SERVER_VOICE, serverVoiceOn, synthesize, transcribe } from './voice-server';
 
@@ -200,7 +200,8 @@ const RECORDING: RecordingOptions = {
 
 /**
  * Records for the server's speech-to-text. `begin` opens the mic (with
- * `onLevel` called every 100 ms with the level in dB), `finish` stops and
+ * `onLevel` called every 100 ms with the level in dB, and stopping any
+ * speech unless `interrupt` is false), `finish` stops and
  * returns the transcript, `cancel` throws the recording away.
  */
 function useServerRecorder() {
@@ -215,10 +216,10 @@ function useServerRecorder() {
   useEffect(() => stopMeter, []);
 
   const begin = useCallback(
-    async (onLevel?: (db: number | undefined) => void): Promise<boolean> => {
+    async (onLevel?: (db: number | undefined) => void, interrupt = true): Promise<boolean> => {
       if (active.current) return true;
       if (!(await requestMicrophone())) return false;
-      stopSpeaking();
+      if (interrupt) stopSpeaking();
       try {
         await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
         await recorder.prepareToRecordAsync();
@@ -424,13 +425,18 @@ export function useDictation(onText: (transcript: string) => void) {
 
 /**
  * Hands-free listening for voice mode: `listen()` opens the mic and stops on
- * its own when the user pauses; `onFinal` gets what they said and `onVolume`
- * the input level (0-1) for the orb.
+ * its own when the user pauses, or at once with `sendNow()`. `onFinal` gets
+ * what they said and `onVolume` the input level (0-1) for the orb.
+ * `transcribing` is true while the server turns speech into text, and
+ * `failed` when that couldn't be done, so the screen can offer a retry
+ * instead of listening again in a loop.
  */
 export function useConversationMic({ onFinal, onVolume }: { onFinal: (text: string) => void; onVolume?: (level: number) => void }) {
   const { consented } = useAiConsent();
   const server = SERVER_VOICE && consented;
   const [listening, setListening] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
+  const [failed, setFailed] = useState(false);
   const [partial, setPartial] = useState('');
   const latest = useRef('');
   const handlers = useRef({ onFinal, onVolume });
@@ -440,6 +446,8 @@ export function useConversationMic({ onFinal, onVolume }: { onFinal: (text: stri
   const rec = useServerRecorder();
   // Bumped by cancel(), so a transcript that arrives afterwards is dropped.
   const turn = useRef(0);
+  // Ends the current server recording now; set while one is open.
+  const endNow = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     if (!recognizer) return;
@@ -471,39 +479,40 @@ export function useConversationMic({ onFinal, onVolume }: { onFinal: (text: stri
     const activity = new VoiceActivity(Date.now());
     let decided = false;
     const ended = async (outcome: 'done' | 'nothing') => {
+      if (decided) return;
+      decided = true;
+      endNow.current = null;
       handlers.current.onVolume?.(0);
+      if (mine !== turn.current) return;
+      setListening(false);
       if (outcome === 'nothing') {
         await rec.cancel();
-        if (mine === turn.current) setListening(false);
         return;
       }
-      setPartial('…');
+      setTranscribing(true);
       try {
         const text = await rec.finish();
-        // Sent before `listening` drops, so voice mode doesn't reopen the mic in between.
         if (text && mine === turn.current) handlers.current.onFinal(text);
       } catch {
-        // The server couldn't be reached; voice mode simply listens again.
+        if (mine === turn.current) setFailed(true);
       } finally {
-        if (mine === turn.current) {
-          setListening(false);
-          setPartial('');
-        }
+        if (mine === turn.current) setTranscribing(false);
       }
     };
+    // Opening the mic doesn't stop speech: voice mode only listens once Raco is quiet.
     const ok = await rec.begin((db) => {
       handlers.current.onVolume?.(meterLevel(db));
-      if (decided) return;
       const step = activity.push(db, Date.now());
-      if (step === 'continue') return;
-      decided = true;
-      void ended(step);
-    });
-    if (ok && mine === turn.current) setListening(true);
+      if (step !== 'continue') void ended(step);
+    }, false);
+    if (!ok || mine !== turn.current || decided) return;
+    endNow.current = () => void ended('done');
+    setListening(true);
   }, [rec]);
 
   const listen = useCallback(async () => {
-    if (listening || starting.current) return;
+    if (listening || transcribing || starting.current) return;
+    setFailed(false);
     if (server) {
       starting.current = true;
       await listenOnServer();
@@ -525,14 +534,22 @@ export function useConversationMic({ onFinal, onVolume }: { onFinal: (text: stri
       addsPunctuation: true,
       volumeChangeEventOptions: { enabled: true, intervalMillis: 100 },
     });
-  }, [listening, server, listenOnServer]);
+  }, [listening, transcribing, server, listenOnServer]);
+
+  /** Stops listening and sends what was said, without waiting for a pause. */
+  const sendNow = useCallback(() => {
+    if (server) endNow.current?.();
+    else recognizer?.stop();
+  }, [server]);
 
   const cancel = useCallback(() => {
     latest.current = '';
     turn.current += 1;
+    endNow.current = null;
     if (server) {
       void rec.cancel();
       setListening(false);
+      setTranscribing(false);
       setPartial('');
       handlers.current.onVolume?.(0);
       return;
@@ -540,7 +557,7 @@ export function useConversationMic({ onFinal, onVolume }: { onFinal: (text: stri
     recognizer?.abort();
   }, [server, rec]);
 
-  return { available: server || (!!recognizer && phoneRecognitionAvailable()), listening, partial, listen, cancel };
+  return { available: server || (!!recognizer && phoneRecognitionAvailable()), listening, transcribing, failed, partial, listen, sendNow, cancel };
 }
 
 // ---------------------------------------------------------------------------
@@ -600,7 +617,7 @@ async function previewVoiceTurn(req: VoiceTurnRequest): Promise<VoiceTurnResult>
         body: JSON.stringify({
           model: config.llmModel || 'qwen3',
           temperature: 0,
-          ...NO_THINKING,
+          ...thinking(false),
           messages: [
             {
               role: 'system',

@@ -9,6 +9,7 @@ import { VoiceOrb, type OrbState } from '@/components/voice-orb';
 import { useAiConsent } from '@/lib/ai-consent';
 import { toPlainText } from '@/lib/markdown';
 import { speakQueued, stopSpeaking, useConversationMic } from '@/lib/voice';
+import { takeSpeakable } from '@/lib/voice-activity';
 import { SERVER_VOICE } from '@/lib/voice-server';
 import { usePreferences } from '@/state/preferences';
 import { useSession } from '@/state/session';
@@ -16,21 +17,13 @@ import { useChat } from '@/state/use-chat';
 import { accent, fonts, noWebOutline, useTheme } from '@/theme';
 import { HueGlow } from '@/vendor/voice-glow-native';
 
-/** Splits finished sentences off a reply that's still streaming in. */
-function takeSentences(text: string, from: number): [string, number] {
-  const rest = text.slice(from);
-  const re = /[.!?…:](?=\s)|\n/g;
-  let end = -1;
-  for (let m = re.exec(rest); m; m = re.exec(rest)) end = m.index + 1;
-  return end < 0 ? ['', from] : [rest.slice(0, end), from + end];
-}
-
 /**
- * Voice mode: a hands-free conversation. Raco listens until you pause,
- * answers out loud sentence by sentence while the reply streams in, then
- * listens again. Tap the orb to interrupt. In Expo Go the AI service does
- * the listening and talking, once the user agrees to it; without that, or
- * without speech recognition, you type and Raco still answers out loud.
+ * Voice mode: a hands-free conversation. Raco listens until you pause (or
+ * you tap the orb to send straight away), answers out loud while the reply
+ * streams in, then listens again. Tap the orb while Raco thinks or talks to
+ * interrupt. In Expo Go the AI service does the listening and talking, once
+ * the user agrees to it; without that, or without speech recognition, you
+ * type and Raco still answers out loud.
  */
 export default function VoiceMode() {
   const t = useTheme();
@@ -51,6 +44,8 @@ export default function VoiceMode() {
   const [speaking, setSpeaking] = useState(false);
   const [heard, setHeard] = useState('');
   const [typed, setTyped] = useState('');
+  // Pieces of the reply queued to speak. A ref, so "is Raco still talking?"
+  // is answered right now rather than at the next render.
   const queued = useRef(0);
   const spokenUpTo = useRef(0);
   const replyId = useRef<string | null>(null);
@@ -91,7 +86,8 @@ export default function VoiceMode() {
     if (!chat.loading && !historyIds.current) historyIds.current = new Set(chat.messages.map((m) => m.id));
   }, [chat.loading, chat.messages]);
 
-  // Read the reply aloud as it streams: each finished sentence, then the rest.
+  // Read the reply aloud as it streams: the first clause as soon as it's in,
+  // then each finished sentence, then the rest.
   const reply = chat.messages.at(-1);
   useEffect(() => {
     if (!reply || reply.role !== 'assistant' || !historyIds.current || historyIds.current.has(reply.id)) return;
@@ -100,7 +96,7 @@ export default function VoiceMode() {
       spokenUpTo.current = 0;
     }
     if (reply.pending) {
-      const [chunk, next] = takeSentences(reply.content, spokenUpTo.current);
+      const [chunk, next] = takeSpeakable(reply.content, spokenUpTo.current);
       if (chunk) {
         spokenUpTo.current = next;
         say(chunk);
@@ -112,8 +108,21 @@ export default function VoiceMode() {
     }
   }, [reply, say]);
 
-  // Hands-free: listen whenever Raco is quiet and the mic isn't muted.
-  const quiet = !speaking && !chat.streaming && !mic.listening;
+  // Hands-free: listen again once Raco is quiet. The short wait lets the
+  // reply's last words finish (and settle) before the mic opens, and the
+  // check runs on refs, so a reply that's just been queued is never cut off.
+  const streamingRef = useRef(chat.streaming);
+  useEffect(() => {
+    streamingRef.current = chat.streaming;
+  }, [chat.streaming]);
+  const quiet = !speaking && !chat.streaming && !mic.listening && !mic.transcribing;
+  useEffect(() => {
+    if (!handsFree || !quiet || muted || chat.loading || mic.failed) return;
+    const timer = setTimeout(() => {
+      if (queued.current === 0 && !streamingRef.current) void micRef.current.listen();
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [handsFree, quiet, muted, chat.loading, mic.failed]);
 
   // The background glow follows your voice while listening, and swells while
   // Raco thinks and talks.
@@ -123,9 +132,6 @@ export default function VoiceMode() {
     glowBase.set(withTiming(speaking ? 0.75 : chat.streaming ? 0.55 : 0.25, { duration: 500 }));
   }, [speaking, chat.streaming, glowBase]);
   const glowLevel = useDerivedValue(() => Math.max(glowBase.value, level.value));
-  useEffect(() => {
-    if (handsFree && quiet && !muted && !chat.loading) void micRef.current.listen();
-  }, [handsFree, quiet, muted, chat.loading]);
 
   useFocusEffect(
     useCallback(
@@ -156,31 +162,55 @@ export default function VoiceMode() {
     else router.back();
   };
 
+  const failed = mic.failed || (!!chat.error && !chat.streaming && !speaking);
   const state: OrbState =
     muted && !speaking && !chat.streaming
       ? 'muted'
       : mic.listening
         ? 'listening'
-        : chat.streaming && !reply?.content
+        : mic.transcribing || (chat.streaming && !reply?.content)
           ? 'thinking'
           : speaking || chat.streaming
             ? 'speaking'
             : 'idle';
 
-  const status = {
-    idle: handsFree ? 'Starting…' : `Type to talk to ${agent}`,
-    listening: 'Listening',
-    thinking: 'Thinking',
-    speaking: 'Tap to interrupt',
-    muted: 'Microphone off',
-  }[state];
+  const status =
+    state === 'listening'
+      ? 'Listening · tap to send'
+      : mic.transcribing
+        ? 'Got it'
+        : state === 'thinking'
+          ? 'Thinking · tap to stop'
+          : state === 'speaking'
+            ? 'Tap to interrupt'
+            : state === 'muted'
+              ? 'Microphone off'
+              : failed && handsFree
+                ? 'Tap to try again'
+                : handsFree
+                  ? 'Starting…'
+                  : `Type to talk to ${agent}`;
 
   const caption =
     state === 'listening'
-      ? mic.partial
+      ? mic.partial || 'Go ahead, I’m listening.'
       : state === 'speaking' && reply?.role === 'assistant'
         ? lastSentences(toPlainText(reply.content))
-        : (chat.error ?? (heard ? `“${heard}”` : `Hi${profile?.displayName ? ` ${profile.displayName}` : ''}. What’s on your mind?`));
+        : mic.failed
+          ? 'I couldn’t catch that. Check your connection and try again.'
+          : (chat.error ?? (heard ? `“${heard}”` : `Hi${profile?.displayName ? ` ${profile.displayName}` : ''}. What’s on your mind?`));
+
+  // The orb does the obvious thing for each state.
+  const onOrb =
+    state === 'listening'
+      ? mic.sendNow
+      : state === 'speaking' || state === 'thinking'
+        ? interrupt
+        : state === 'muted'
+          ? toggleMute
+          : failed && handsFree
+            ? () => void mic.listen()
+            : undefined;
 
   const submitTyped = () => {
     const text = typed.trim();
@@ -198,12 +228,7 @@ export default function VoiceMode() {
         </View>
 
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 18, paddingHorizontal: 28 }}>
-          <VoiceOrb
-            state={state}
-            level={level}
-            label={state === 'speaking' || state === 'thinking' ? 'Interrupt' : status}
-            onPress={state === 'speaking' || state === 'thinking' ? interrupt : undefined}
-          />
+          <VoiceOrb state={state} level={level} label={status} onPress={onOrb} />
           <Text accessibilityLiveRegion="polite" style={{ fontFamily: fonts.bodyMedium, fontSize: 14, color: t.faint }}>
             {status}
           </Text>

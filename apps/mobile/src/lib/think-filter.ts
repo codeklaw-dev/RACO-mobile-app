@@ -65,5 +65,11 @@ export function withoutThinking(text: string): string {
   return (f.push(text) + f.flush()).trim();
 }
 
-/** Request fields that turn Qwen3's thinking off on vLLM: replies come back faster and without reasoning. */
-export const NO_THINKING = { chat_template_kwargs: { enable_thinking: false } } as const;
+/**
+ * Request fields for Qwen3's thinking on vLLM. With it on, the model reasons
+ * in a separate `reasoning` field the app never shows, then answers: slower
+ * to start (about 5-9 s) but right far more often. With it off, answers start
+ * in under a second, but the model tends to "think out loud" in the answer
+ * itself. Chat uses it on; voice, where the first word matters most, off.
+ */
+export const thinking = (on: boolean) => ({ chat_template_kwargs: { enable_thinking: on } }) as const;

@@ -88,6 +88,15 @@ const checks = [
     'Production build has demo mode off (2.1, 2.3.1)',
     () => eas.build?.production?.env?.EXPO_PUBLIC_DEMO === '0' && /LLM_PROVIDER=demo is not allowed in production/.test(api),
   ],
+  [
+    // The demo is published as an update to the expo-go branch; store builds
+    // read the production channel, which must point at its own branch.
+    'Demo updates never reach store builds (2.1)',
+    () =>
+      eas.build?.production?.channel === 'production' &&
+      /--branch expo-go\b/.test(mobilePkg.scripts?.['publish:expo-go'] ?? '') &&
+      !/--branch production\b|--channel production\b/.test(JSON.stringify(mobilePkg.scripts ?? {})),
+  ],
   ['No downloaded or evaluated code (2.5.2)', () => !/\beval\(|new Function\(/.test(mobile)],
   ['No payment links outside in-app purchase (3.1.1)', () => !/stripe|paypal|checkout\.|buy\.|\/pricing/i.test(mobile)],
   [
